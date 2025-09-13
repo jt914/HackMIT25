@@ -224,21 +224,21 @@ export default function LessonPage() {
                       <div className="text-green-400 text-sm font-mono">
                         <div># Example: Working with {currentActivity.title.toLowerCase()}</div>
                         <div className="mt-2 text-blue-400">
-                          {currentActivity.type === 'coding' && currentActivity.title.includes('Python') && (
+                          {currentActivity.title.includes('Python') && (
                             <>
                               <div>name = "OnboardCademy Student"</div>
-                              <div>print(f"Hello, {'{name}'}!")</div>
+                              <div>print(f"Hello, {`{name}`}!")</div>
                               <div className="mt-2 text-gray-400"># Output: Hello, OnboardCademy Student!</div>
                             </>
                           )}
-                          {currentActivity.type === 'coding' && currentActivity.title.includes('React') && (
+                          {currentActivity.title.includes('React') && (
                             <>
-                              <div>const Welcome = ({'{name}'}) =&gt; {'{'}}</div>
-                              <div>  return &lt;h1&gt;Hello, {'{name}'}!&lt;/h1&gt;;</div>
-                              <div>{'};'}</div>
+                              <div>{`const Welcome = ({name}) => {`}</div>
+                              <div>  {`return <h1>Hello, {name}!</h1>;`}</div>
+                              <div>{`};`}</div>
                             </>
                           )}
-                          {currentActivity.type === 'coding' && currentActivity.title.includes('SQL') && (
+                          {currentActivity.title.includes('SQL') && (
                             <>
                               <div>SELECT name, email</div>
                               <div>FROM users</div>
