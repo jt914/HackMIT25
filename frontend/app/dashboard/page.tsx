@@ -1,0 +1,305 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { dummyLessons, type Lesson } from '@/lib/lessons';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Home,
+  FolderOpen,
+  BookOpen,
+  Settings,
+  Plus,
+  LogOut,
+  FileText,
+  MoreHorizontal,
+  MessageCircle
+} from 'lucide-react';
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  enrolledLessons: string[];
+}
+
+export default function Dashboard() {
+  const [user, setUser] = useState<User | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [activeTab, setActiveTab] = useState('Home');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInput, setModalInput] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    fetchUser();
+    setLessons(dummyLessons);
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/user/me');
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      router.push('/login');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalInput.trim()) {
+      router.push(`/chat?prompt=${encodeURIComponent(modalInput.trim())}`);
+    }
+  };
+
+  const getDifficultyVariant = (difficulty: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (difficulty) {
+      case 'Beginner': return 'default';
+      case 'Intermediate': return 'secondary';
+      case 'Advanced': return 'destructive';
+      default: return 'outline';
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      <div className="w-64 bg-card shadow-lg border-r fixed h-full overflow-y-auto">
+        <div className="p-6">
+          <Link href="/dashboard" className="flex items-center">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+              <span className="text-primary-foreground font-bold text-lg">O</span>
+            </div>
+            <span className="font-bold text-xl">OnboardCademy</span>
+          </Link>
+        </div>
+
+        <nav className="mt-6">
+          <div className="px-6 py-2">
+            <Button
+              variant={activeTab === 'Home' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('Home')}
+            >
+              <Home className="mr-3 h-4 w-4" />
+              Home
+            </Button>
+          </div>
+
+          <div className="px-6 py-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link href="/chat">
+                <MessageCircle className="mr-3 h-4 w-4" />
+                Chat
+              </Link>
+            </Button>
+          </div>
+
+          <div className="px-6 py-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link href="/settings">
+                <Settings className="mr-3 h-4 w-4" />
+                Settings
+              </Link>
+            </Button>
+          </div>
+        </nav>
+
+
+        <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t bg-card">
+          <div className="flex items-center">
+            <Avatar className="mr-3">
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 p-8 ml-64">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">All Lessons</h1>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {lessons.map((lesson) => (
+            <Link key={lesson._id} href={`/lesson/${lesson._id}`}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer border">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg font-semibold">{lesson.title}</CardTitle>
+                    <Button variant="ghost" size="sm" className="h-auto p-1">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Data columns ({lesson.totalSteps}):
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Item ID</div>
+                      <div className="text-sm font-medium">Location</div>
+                      <div className="text-sm font-medium">Description</div>
+                      {lesson.activities.length > 3 && (
+                        <div className="text-sm text-primary">+{lesson.activities.length - 3} more</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="text-sm text-primary hover:underline font-medium">
+                        {lesson.category.toLowerCase().replace(' ', '_')}_sample.csv
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {lesson.completedSteps} rows • 0.{Math.floor(Math.random() * 9) + 1} KB
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Sample data:</div>
+                    <div className="text-xs text-muted-foreground">
+                      {lesson.title.includes('Python') && 'THR001 | Trench A3 | Pottery | Fragment of a red-slip...'}
+                      {lesson.title.includes('React') && 'COMP001 | Building A | Component | Modern React patterns...'}
+                      {lesson.title.includes('Database') && 'DB001 | Server B1 | Schema | Relational database design...'}
+                      {lesson.title.includes('Machine') && 'ML001 | Algorithm C | Model | Supervised learning approach...'}
+                      {lesson.title.includes('JavaScript') && 'JS001 | Module D | Function | Arrow functions and async...'}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-xs text-muted-foreground">
+                      Created {lesson.createdAt}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={getDifficultyVariant(lesson.difficulty)}
+                        className="text-xs"
+                      >
+                        {lesson.difficulty}
+                      </Badge>
+                      <Button size="sm" className="h-7 px-3 text-xs">
+                        Record
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{lesson.progress}%</span>
+                    </div>
+                    <Progress value={lesson.progress} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </main>
+
+      {/* Floating Create Button */}
+      <div className="fixed bottom-8 right-8 z-40">
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          className="h-16 w-48 bg-orange-500 hover:bg-orange-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
+        >
+          <Plus className="h-6 w-6 mr-2" />
+          Create Lesson
+        </Button>
+      </div>
+
+      {/* Custom Modal Overlay */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center animate-in fade-in-0 duration-300"
+          onClick={() => {
+            setIsModalOpen(false);
+            setModalInput('');
+          }}
+        >
+          <div
+            className="animate-in fade-in-0 slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={handleModalSubmit} className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-3xl font-light text-white mb-2 animate-in slide-in-from-top-2 duration-500 delay-150">
+                  What do you want to learn today?
+                </h2>
+              </div>
+              <div className="animate-in slide-in-from-bottom-4 duration-500 delay-300">
+                <Input
+                  value={modalInput}
+                  onChange={(e) => setModalInput(e.target.value)}
+                  placeholder="Start typing here..."
+                  className="w-96 h-14 text-lg bg-white/90 backdrop-blur-sm border-0 rounded-2xl px-6 placeholder:text-gray-500 focus:bg-white/95 transition-all duration-200 shadow-lg"
+                  autoFocus
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
