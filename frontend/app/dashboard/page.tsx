@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
   Home,
   FolderOpen,
@@ -18,7 +20,8 @@ import {
   Plus,
   LogOut,
   FileText,
-  MoreHorizontal
+  MoreHorizontal,
+  MessageCircle
 } from 'lucide-react';
 
 interface User {
@@ -31,7 +34,9 @@ interface User {
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [activeTab, setActiveTab] = useState('Home');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInput, setModalInput] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -60,6 +65,13 @@ export default function Dashboard() {
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalInput.trim()) {
+      router.push(`/chat?prompt=${encodeURIComponent(modalInput.trim())}`);
     }
   };
 
@@ -98,37 +110,25 @@ export default function Dashboard() {
         <nav className="mt-6">
           <div className="px-6 py-2">
             <Button
-              variant={activeTab === 'Dashboard' ? 'secondary' : 'ghost'}
+              variant={activeTab === 'Home' ? 'secondary' : 'ghost'}
               className="w-full justify-start"
-              onClick={() => setActiveTab('Dashboard')}
+              onClick={() => setActiveTab('Home')}
             >
               <Home className="mr-3 h-4 w-4" />
-              Dashboard
+              Home
             </Button>
           </div>
 
           <div className="px-6 py-1">
             <Button
-              variant={activeTab === 'Lessons' ? 'secondary' : 'ghost'}
+              variant="ghost"
               className="w-full justify-start"
-              onClick={() => setActiveTab('Lessons')}
+              asChild
             >
-              <FolderOpen className="mr-3 h-4 w-4 text-primary" />
-              Lessons
-              <Badge variant="outline" className="ml-auto">
-                {lessons.length}
-              </Badge>
-            </Button>
-          </div>
-
-          <div className="px-6 py-1">
-            <Button
-              variant={activeTab === 'Documentation' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveTab('Documentation')}
-            >
-              <BookOpen className="mr-3 h-4 w-4" />
-              Documentation
+              <Link href="/chat">
+                <MessageCircle className="mr-3 h-4 w-4" />
+                Chat
+              </Link>
             </Button>
           </div>
 
@@ -146,17 +146,6 @@ export default function Dashboard() {
           </div>
         </nav>
 
-        <div className="mt-8 px-6">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-3">
-            Quick Actions
-          </div>
-          <Button className="w-full justify-start" asChild>
-            <Link href="/dashboard/new-lesson">
-              <Plus className="mr-2 h-4 w-4" />
-              New Lesson
-            </Link>
-          </Button>
-        </div>
 
         <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t bg-card">
           <div className="flex items-center">
@@ -183,11 +172,7 @@ export default function Dashboard() {
 
       <main className="flex-1 p-8 ml-64">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Lessons</h1>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add New
-          </Button>
+          <h1 className="text-3xl font-bold">All Lessons</h1>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -271,6 +256,50 @@ export default function Dashboard() {
           ))}
         </div>
       </main>
+
+      {/* Floating Create Button */}
+      <div className="fixed bottom-8 right-8 z-40">
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          className="h-16 w-48 bg-orange-500 hover:bg-orange-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 text-lg font-semibold"
+        >
+          <Plus className="h-6 w-6 mr-2" />
+          Create Lesson
+        </Button>
+      </div>
+
+      {/* Custom Modal Overlay */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center animate-in fade-in-0 duration-300"
+          onClick={() => {
+            setIsModalOpen(false);
+            setModalInput('');
+          }}
+        >
+          <div
+            className="animate-in fade-in-0 slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={handleModalSubmit} className="space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-3xl font-light text-white mb-2 animate-in slide-in-from-top-2 duration-500 delay-150">
+                  What do you want to learn today?
+                </h2>
+              </div>
+              <div className="animate-in slide-in-from-bottom-4 duration-500 delay-300">
+                <Input
+                  value={modalInput}
+                  onChange={(e) => setModalInput(e.target.value)}
+                  placeholder="Start typing here..."
+                  className="w-96 h-14 text-lg bg-white/90 backdrop-blur-sm border-0 rounded-2xl px-6 placeholder:text-gray-500 focus:bg-white/95 transition-all duration-200 shadow-lg"
+                  autoFocus
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

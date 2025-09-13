@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { dummyLessons, type Lesson } from '@/lib/lessons';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface User {
   _id: string;
@@ -15,7 +18,9 @@ interface User {
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [activeTab, setActiveTab] = useState('Home');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInput, setModalInput] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -44,6 +49,13 @@ export default function Dashboard() {
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalInput.trim()) {
+      router.push(`/chat?prompt=${encodeURIComponent(modalInput.trim())}`);
     }
   };
 
@@ -88,47 +100,26 @@ export default function Dashboard() {
         <nav className="mt-6">
           <div className="px-6 py-3">
             <button
-              onClick={() => setActiveTab('Dashboard')}
+              onClick={() => setActiveTab('Home')}
               className={`flex items-center w-full px-3 py-2 rounded-lg text-left ${
-                activeTab === 'Dashboard'
+                activeTab === 'Home'
                   ? 'bg-orange-100 text-orange-700 font-medium'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               <span className="mr-3">🏠</span>
-              Dashboard
+              Home
             </button>
           </div>
 
           <div className="px-6 py-1">
-            <button
-              onClick={() => setActiveTab('Lessons')}
-              className={`flex items-center w-full px-3 py-2 rounded-lg text-left ${
-                activeTab === 'Lessons'
-                  ? 'bg-orange-100 text-orange-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+            <Link
+              href="/chat"
+              className="flex items-center w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:bg-gray-100"
             >
-              <span className="mr-3 text-orange-500">📁</span>
-              Lessons
-              <span className="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded">
-                {lessons.length}
-              </span>
-            </button>
-          </div>
-
-          <div className="px-6 py-1">
-            <button
-              onClick={() => setActiveTab('Documentation')}
-              className={`flex items-center w-full px-3 py-2 rounded-lg text-left ${
-                activeTab === 'Documentation'
-                  ? 'bg-orange-100 text-orange-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span className="mr-3">📚</span>
-              Documentation
-            </button>
+              <span className="mr-3">💬</span>
+              Chat
+            </Link>
           </div>
 
           <div className="px-6 py-1">
@@ -179,14 +170,22 @@ export default function Dashboard() {
 
       <main className="flex-1 p-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Lessons</h1>
-          <button className="bg-gray-900 text-white px-4 py-2 rounded-lg flex items-center">
-            <span className="mr-2">+</span>
-            Add New
-          </button>
+          <h1 className="text-3xl font-bold text-gray-900">All Lessons</h1>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Large Orange + Button */}
+          <div
+            onClick={() => setIsModalOpen(true)}
+            className="bg-white rounded-lg border-2 border-dashed border-orange-300 p-6 hover:border-orange-500 hover:shadow-md transition-all cursor-pointer flex flex-col items-center justify-center min-h-[300px] group"
+          >
+            <div className="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mb-4 group-hover:bg-orange-600 transition-colors">
+              <span className="text-white font-bold text-4xl">+</span>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Create New Lesson</h3>
+            <p className="text-gray-600 text-center">Click here to create a personalized learning experience</p>
+          </div>
+
           {lessons.map((lesson) => (
             <Link key={lesson._id} href={`/lesson/${lesson._id}`}>
               <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
@@ -261,6 +260,44 @@ export default function Dashboard() {
           ))}
         </div>
       </main>
+
+      {/* Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-gray-900">What would you like to learn?</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Tell me what you're interested in learning about, and I'll create a personalized lesson for you!
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleModalSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                value={modalInput}
+                onChange={(e) => setModalInput(e.target.value)}
+                placeholder="e.g., React hooks, Python data structures, Machine learning basics..."
+                className="text-lg p-6"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setModalInput('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-orange-500 hover:bg-orange-600" disabled={!modalInput.trim()}>
+                Start Learning
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
