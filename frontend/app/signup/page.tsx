@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setAuthToken } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -37,7 +38,7 @@ export default function Signup() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/create-account', {
+      const response = await fetch(getApiEndpoint('create-account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: name, email, password }),

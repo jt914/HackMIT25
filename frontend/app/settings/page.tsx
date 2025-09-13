@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,7 +80,7 @@ export default function Settings() {
         return;
       }
       
-      const response = await fetch(`http://localhost:8000/user-profile/${userEmail}`);
+      const response = await fetch(getApiEndpoint(`user-profile/${userEmail}`));
       const data = await response.json();
       
       if (response.ok && data.success) {
@@ -212,7 +213,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/set-linear-api-key', {
+      const response = await fetch(getApiEndpoint('set-linear-api-key'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -253,7 +254,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/process-linear-tickets', {
+      const response = await fetch(getApiEndpoint('process-linear-tickets'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userProfile.user.email }),
@@ -284,7 +285,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/set-slack-api-key', {
+      const response = await fetch(getApiEndpoint('set-slack-api-key'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -330,7 +331,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/process-slack-messages', {
+      const response = await fetch(getApiEndpoint('process-slack-messages'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -366,7 +367,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/add-repository', {
+      const response = await fetch(getApiEndpoint('add-repository'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -400,7 +401,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/remove-repository', {
+      const response = await fetch(getApiEndpoint('remove-repository'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -430,7 +431,7 @@ export default function Settings() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/process-repository', {
+      const response = await fetch(getApiEndpoint('process-repository'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -655,7 +656,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             {userProfile.repositories.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No repositories added yet. Click "Add Repository" to get started.</p>
+              <p className="text-gray-500 text-center py-8">No repositories added yet. Click &quot;Add Repository&quot; to get started.</p>
             ) : (
               <div className="space-y-4">
                 {userProfile.repositories.map((repo) => (
@@ -830,7 +831,7 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="text-red-900">Danger Zone</CardTitle>
             <CardDescription>
-              Once you logout, you'll need to sign in again to access your account.
+              Once you logout, you&apos;ll need to sign in again to access your account.
             </CardDescription>
           </CardHeader>
           <CardContent>

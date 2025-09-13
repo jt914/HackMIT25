@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 import {
   Home,
   MessageCircle,
@@ -33,7 +34,7 @@ interface Message {
   lessonId?: string;
 }
 
-export default function Chat() {
+function ChatComponent() {
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -128,7 +129,7 @@ export default function Chat() {
       };
       setMessages(prev => [...prev, loadingMessage]);
 
-      const response = await fetch('http://localhost:8000/generate-lesson', {
+      const response = await fetch(getApiEndpoint('generate-lesson'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -387,5 +388,20 @@ export default function Chat() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function Chat() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ChatComponent />
+    </Suspense>
   );
 }

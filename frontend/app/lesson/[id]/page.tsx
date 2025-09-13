@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ArrowRight, CheckCircle, Clock } from 'lucide-react';
 import { getCurrentUserEmail, isAuthenticated } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 
 // New types based on the API schema
 interface MCQOption {
@@ -68,7 +69,7 @@ export default function LessonPage() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [completedSlides, setCompletedSlides] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
   
   // MCQ state
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -101,8 +102,7 @@ export default function LessonPage() {
       setUser({
         id: email,
         email: email,
-        name: email.split('@')[0], // Use part before @ as display name
-        enrolledLessons: []
+        name: email.split('@')[0] // Use part before @ as display name
       });
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -115,7 +115,7 @@ export default function LessonPage() {
       if (!user?.email) return;
       
       const lessonId = params.id as string;
-      const response = await fetch(`http://localhost:8000/lesson/${user.email}/${lessonId}`);
+      const response = await fetch(getApiEndpoint(`lesson/${user.email}/${lessonId}`));
       
       if (response.ok) {
         const data = await response.json();

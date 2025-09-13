@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       return response;
 
     } catch (mongoError) {
-      console.warn('MongoDB unavailable, using fallback database:', mongoError.message);
+      console.warn('MongoDB unavailable, using fallback database:', mongoError instanceof Error ? mongoError.message : String(mongoError));
 
       // Use fallback database
       const user = await fallbackDB.findUserByEmail(email);

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ user });
 
     } catch (mongoError) {
-      console.warn('MongoDB unavailable, using fallback database:', mongoError.message);
+      console.warn('MongoDB unavailable, using fallback database:', mongoError instanceof Error ? mongoError.message : String(mongoError));
 
       // Use fallback database
       const user = await fallbackDB.findUserById(decoded.userId);
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Remove password from response
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
 
       return NextResponse.json({ user: userWithoutPassword });
     }

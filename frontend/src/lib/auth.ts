@@ -25,9 +25,10 @@ export const generateToken = (userId: string): string => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
-export const verifyToken = (token: string): any => {
+export const verifyToken = (token: string): { userId: string } | null => {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    return decoded;
   } catch (error) {
     return null;
   }
@@ -35,7 +36,7 @@ export const verifyToken = (token: string): any => {
 
 export const getUserFromToken = (token: string): { userId: string } | null => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     return decoded;
   } catch (error) {
     return null;

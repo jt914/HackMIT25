@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setAuthToken } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/login-account', {
+      const response = await fetch(getApiEndpoint('login-account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -99,7 +100,7 @@ export default function Login() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-medium text-primary hover:underline">
                 Sign up
               </Link>

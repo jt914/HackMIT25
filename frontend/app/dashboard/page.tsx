@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 import { Input } from '@/components/ui/input';
 import {
   Home,
@@ -83,7 +84,7 @@ export default function Dashboard() {
     if (!user?.email) return;
     
     try {
-      const response = await fetch(`http://localhost:8000/lessons/${user.email}`);
+      const response = await fetch(getApiEndpoint(`lessons/${user.email}`));
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.lessons) {
