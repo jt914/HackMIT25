@@ -3,8 +3,6 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.tools import FunctionTool
 import agent.agent_helpers as agent_helpers
 
-
-
 def create_codebase_search_tool(index_name: str) -> FunctionTool:
     def search_func(query: str, k: int = 5) -> str:
         try:
@@ -129,7 +127,6 @@ def create_linear_ticket_search_tool(index_name: str) -> FunctionTool:
         - namespace: Pinecone namespace to search in (default: 'linear-tickets')
         Returns: Content preview and raw metadata for matching tickets with similarity scores.""",
     )
-
 
 def create_agent_tools(index_name: str) -> List[FunctionTool]:
     return [create_codebase_search_tool(index_name), create_linear_ticket_search_tool(index_name)]
