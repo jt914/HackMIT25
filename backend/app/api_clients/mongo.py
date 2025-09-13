@@ -77,10 +77,10 @@ class MongoClient:
                 return user["integrations"]
             else:
                 # Return default integrations if none exist
-                return {"github": False, "linear": False}
+                return {"github": False, "linear": False, "slack": False}
         except Exception as e:
             print(f"Error getting user integrations for {email}: {e}")
-            return {"github": False, "linear": False}
+            return {"github": False, "linear": False, "slack": False}
 
     def save_lesson(self, email: str, lesson_data: dict) -> str:
         """
@@ -105,6 +105,50 @@ class MongoClient:
         except Exception as e:
             print(f"Error saving lesson for {email}: {e}")
             raise e
+
+    def save_new_lesson(self, lesson_dict: dict) -> str:
+        """
+        Save a new lesson structure for a user. 
+        Returns the lesson ID.
+        """
+        try:
+            email = lesson_dict.get("user_email")
+            if not email:
+                raise ValueError("user_email is required in lesson data")
+
+            # Use $push to add lesson to lessons array, creating it if it doesn't exist
+            self.users.update_one({"email": email}, {"$push": {"lessons": lesson_dict}})
+
+            return lesson_dict.get("id")
+        except Exception as e:
+            print(f"Error saving new lesson: {e}")
+            raise e
+
+    def get_user_lesson_summaries(self, email: str) -> list:
+        """
+        Get lesson summaries for a user (id, title, description, duration, created_at).
+        Returns empty list if no lessons exist.
+        """
+        try:
+            user = self.users.find_one({"email": email})
+            if user and "lessons" in user:
+                # Return only summary fields for each lesson
+                summaries = []
+                for lesson in user["lessons"]:
+                    summary = {
+                        "id": lesson.get("id"),
+                        "title": lesson.get("title"),
+                        "description": lesson.get("description"),
+                        "estimated_duration_minutes": lesson.get("estimated_duration_minutes", 15),
+                        "created_at": lesson.get("created_at")
+                    }
+                    summaries.append(summary)
+                return summaries
+            else:
+                return []
+        except Exception as e:
+            print(f"Error getting user lesson summaries for {email}: {e}")
+            return []
 
     def get_user_lessons(self, email: str) -> list:
         """
@@ -160,6 +204,23 @@ class MongoClient:
             return self.users.find_one({"email": email})["linear_api_key"]
         except Exception as e:
             print(f"Error getting linear api key for {email}: {e}")
+            return None
+
+    def set_slack_api_key(self, email: str, api_key: str) -> bool:
+        try:
+            self.users.update_one(
+                {"email": email}, {"$set": {"slack_api_key": api_key}}
+            )
+            return True
+        except Exception as e:
+            print(f"Error setting slack api key for {email}: {e}")
+            return False
+    
+    def get_slack_api_key(self, email: str) -> str:
+        try:
+            return self.users.find_one({"email": email})["slack_api_key"]
+        except Exception as e:
+            print(f"Error getting slack api key for {email}: {e}")
             return None
 
 

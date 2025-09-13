@@ -7,13 +7,16 @@ from models import (
     AuthResponse,
     AccountDetails,
     LoginDetails,
-    LessonRequest,
-    LessonResponse,
-    LessonContent,
+    GenerateLessonRequest,
+    GenerateLessonResponse,
+    GetLessonsResponse,
+    GetLessonResponse,
+    Lesson,
     LinearTicketRequest,
     LinearTicketApiKeyRequest,
     ChatRequest,
     ChatResponse,
+    SlackApiKeyRequest,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from auth import create_jwt_token
@@ -95,70 +98,39 @@ async def process_repository(request: RepositoryRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/create-lesson", response_model=LessonResponse)
-# async def create_lesson(request: LessonRequest):
-#     """
-#     Create a lesson using the AI agent and save it to the user's MongoDB account.
-#     """
-#     try:
-#         # Initialize the lesson agent
-#         username = mongo_client.get_username_by_email(request.email)
-#         agent = LessonAgent(index_name=f"{username}-user-database")
+@app.post("/generate-lesson", response_model=GenerateLessonResponse)
+async def generate_lesson(request: GenerateLessonRequest):
+    """
+    Generate a bite-sized lesson with 10-15 slides based on user query.
+    """
+    try:
+        # Get username for the agent
+        username = mongo_client.get_username_by_email(request.email)
+        if not username:
+            raise HTTPException(status_code=404, detail="User not found")
 
-#         # Convert user context to dictionary
-#         user_context = {
-#             "role": request.role,
-#             "experience": request.experience,
-#             "focus_areas": request.focus_areas,
-#         }
+        # Initialize lesson generator service
+        from services.lesson_service import LessonGeneratorService
+        lesson_service = LessonGeneratorService(username=username)
 
-#         # Generate lesson using the agent
-#         lesson_text = await agent.generate_lesson(request.topic, user_context)
+        # Generate lesson
+        lesson = await lesson_service.generate_lesson(request.query, request.email)
 
-#         # Parse the JSON response from the agent
-#         try:
-#             # Clean the response to extract JSON
-#             lesson_text = lesson_text.strip()
-#             if lesson_text.startswith("```json"):
-#                 lesson_text = lesson_text[7:]
-#             if lesson_text.endswith("```"):
-#                 lesson_text = lesson_text[:-3]
-#             lesson_text = lesson_text.strip()
+        # Save lesson to MongoDB
+        lesson_dict = lesson.model_dump()
+        lesson_id = mongo_client.save_new_lesson(lesson_dict)
 
-#             lesson_data = json.loads(lesson_text)
+        return GenerateLessonResponse(
+            success=True, 
+            lesson_id=lesson_id, 
+            lesson=lesson
+        )
 
-#             # Create LessonContent object
-#             lesson_content = LessonContent(**lesson_data)
-
-#         except json.JSONDecodeError as e:
-#             print(f"Failed to parse lesson JSON: {e}")
-#             print(f"Raw response: {lesson_text}")
-#             raise HTTPException(
-#                 status_code=500,
-#                 detail=f"Failed to parse lesson response as JSON: {str(e)}",
-#             )
-
-#         # Save lesson to MongoDB
-#         try:
-#             lesson_id = mongo_client.save_lesson(
-#                 request.email, lesson_content.model_dump()
-#             )
-
-#             return LessonResponse(
-#                 success=True, lesson_id=lesson_id, lesson=lesson_content
-#             )
-
-#         except Exception as e:
-#             print(f"Failed to save lesson to database: {e}")
-#             raise HTTPException(
-#                 status_code=500, detail=f"Failed to save lesson: {str(e)}"
-#             )
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         print(f"Error creating lesson: {e}")
-#         return LessonResponse(success=False, error=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error generating lesson: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/process-linear-tickets", response_model=RepositoryResponse)
@@ -181,6 +153,7 @@ async def process_linear_tickets(request: LinearTicketRequest):
 async def set_linear_api_key(request: LinearTicketApiKeyRequest):
     try:
         mongo_client.set_linear_api_key(email=request.email, api_key=request.api_key)
+        mongo_client.update_user_integrations(email=request.email, integration="linear", is_enabled=True)
         return RepositoryResponse(
             success=True,
             repository=request.email,
@@ -192,6 +165,19 @@ async def set_linear_api_key(request: LinearTicketApiKeyRequest):
         raise
     except Exception as e:
         print(f"Error setting linear api key for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/set-slack-api-key", response_model=RepositoryResponse)
+async def set_slack_api_key(request: SlackApiKeyRequest):
+    try:
+        mongo_client.set_slack_api_key(email=request.email, api_key=request.api_key)
+        mongo_client.update_user_integrations(email=request.email, integration="slack", is_enabled=True)
+        return RepositoryResponse(success=True, repository=request.email, sandbox_id=None, output=None, error=None)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error setting slack api key for {request.email}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -215,16 +201,42 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/lessons/{email}")
+@app.get("/lessons/{email}", response_model=GetLessonsResponse)
 async def get_user_lessons(email: str):
     """
-    Get all lessons for a user.
+    Get all lesson summaries for a user.
     """
     try:
-        lessons = mongo_client.get_user_lessons(email)
-        return {"success": True, "lessons": lessons}
+        lesson_summaries = mongo_client.get_user_lesson_summaries(email)
+        from models import LessonSummary
+        
+        # Convert to LessonSummary objects
+        lessons = [LessonSummary(**summary) for summary in lesson_summaries]
+        
+        return GetLessonsResponse(success=True, lessons=lessons)
     except Exception as e:
         print(f"Error getting lessons for {email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/lesson/{email}/{lesson_id}", response_model=GetLessonResponse)
+async def get_lesson_by_id(email: str, lesson_id: str):
+    """
+    Get a specific lesson by ID for a user.
+    """
+    try:
+        lesson_data = mongo_client.get_lesson_by_id(email, lesson_id)
+        if not lesson_data:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        # Convert to Lesson object
+        lesson = Lesson(**lesson_data)
+        
+        return GetLessonResponse(success=True, lesson=lesson)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting lesson {lesson_id} for {email}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

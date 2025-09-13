@@ -10,14 +10,14 @@ from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.schema import TextNode
 import pinecone
-from api_clients.linear_client import linear_client
+from api_clients.linear_client import LinearClient
 import constants
 from api_clients.mongo import mongo_client
 
 
 class LinearTicketIngester:
     def __init__(self, email: str):
-        self.linear_client = linear_client(
+        self.linear_client = LinearClient(
             api_key=mongo_client.get_linear_api_key(email=email)
         )
         self.username = mongo_client.get_username_by_email(email=email)

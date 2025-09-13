@@ -21,6 +21,7 @@ class SlackMessageIngester:
     def __init__(self, email: str):
         self.username = mongo_client.get_username_by_email(email=email)
         self.index_name = f"{self.username}-user-database"
+        self.slack_client = SlackClient(api_key=mongo_client.get_slack_api_key(email=email))
 
         # Initialize Pinecone
         self.pc = pinecone.Pinecone(api_key=constants.PINECONE_API_KEY)
@@ -44,16 +45,14 @@ class SlackMessageIngester:
     async def ingest_messages(
         self,
         channel_id: str,
-        slack_api_key: str,
         oldest: Optional[datetime] = None,
         latest: Optional[datetime] = None,
         limit: int = 200,
     ) -> Dict[str, Any]:
         """Fetch Slack messages and index them into Pinecone."""
         try:
-            slack_client = SlackClient(api_key=slack_api_key)
 
-            messages = await slack_client.fetch_channel_messages(
+            messages = await self.slack_client.fetch_channel_messages(
                 channel_id=channel_id, oldest=oldest, latest=latest, limit=limit
             )
 
@@ -68,12 +67,12 @@ class SlackMessageIngester:
                 elif m.get("bot_id"):
                     user_ids.append(m["bot_id"])
 
-            user_map = await slack_client.fetch_user_map(user_ids)
+            user_map = await self.slack_client.fetch_user_map(user_ids)
 
             # Convert to TextNodes
             nodes: List[TextNode] = []
             for message in messages:
-                content, metadata = slack_client.process_message(
+                content, metadata = self.slack_client.process_message(
                     message, user_map, channel_id
                 )
                 node = TextNode(text=content, metadata=metadata)
