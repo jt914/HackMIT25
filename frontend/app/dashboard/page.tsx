@@ -85,7 +85,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <div className="w-64 bg-card shadow-lg border-r">
+      <div className="w-64 bg-card shadow-lg border-r fixed h-full overflow-y-auto">
         <div className="p-6">
           <Link href="/dashboard" className="flex items-center">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
@@ -181,7 +181,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 ml-64">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Lessons</h1>
           <Button>
@@ -193,69 +193,72 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {lessons.map((lesson) => (
             <Link key={lesson._id} href={`/lesson/${lesson._id}`}>
-              <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer border">
+                <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg line-clamp-2">{lesson.title}</CardTitle>
-                    <Button variant="ghost" size="sm">
-                      <MoreHorizontal className="h-4 w-4" />
+                    <CardTitle className="text-lg font-semibold">{lesson.title}</CardTitle>
+                    <Button variant="ghost" size="sm" className="h-auto p-1">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
                   <div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                      <span>Activities ({lesson.totalSteps}):</span>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Data columns ({lesson.totalSteps}):
                     </div>
                     <div className="space-y-1">
-                      {lesson.activities.slice(0, 3).map((activity, index) => (
-                        <div key={activity.id} className="text-sm text-muted-foreground">
-                          {activity.title}
-                          {index === 2 && lesson.activities.length > 3 && (
-                            <span className="text-primary"> +{lesson.activities.length - 3} more</span>
-                          )}
-                        </div>
-                      ))}
+                      <div className="text-sm font-medium">Item ID</div>
+                      <div className="text-sm font-medium">Location</div>
+                      <div className="text-sm font-medium">Description</div>
+                      {lesson.activities.length > 3 && (
+                        <div className="text-sm text-primary">+{lesson.activities.length - 3} more</div>
+                      )}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <FileText className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-primary hover:underline">
+                      <span className="text-sm text-primary hover:underline font-medium">
                         {lesson.category.toLowerCase().replace(' ', '_')}_sample.csv
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {lesson.completedSteps} rows • {Math.floor(Math.random() * 10) + 1} KB
+                      {lesson.completedSteps} rows • 0.{Math.floor(Math.random() * 9) + 1} KB
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-xs text-muted-foreground mb-2">Sample data:</div>
-                    <div className="text-xs text-muted-foreground line-clamp-2">
-                      {lesson.description}
+                    <div className="text-xs text-muted-foreground mb-1">Sample data:</div>
+                    <div className="text-xs text-muted-foreground">
+                      {lesson.title.includes('Python') && 'THR001 | Trench A3 | Pottery | Fragment of a red-slip...'}
+                      {lesson.title.includes('React') && 'COMP001 | Building A | Component | Modern React patterns...'}
+                      {lesson.title.includes('Database') && 'DB001 | Server B1 | Schema | Relational database design...'}
+                      {lesson.title.includes('Machine') && 'ML001 | Algorithm C | Model | Supervised learning approach...'}
+                      {lesson.title.includes('JavaScript') && 'JS001 | Module D | Function | Arrow functions and async...'}
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-2">
                     <div className="text-xs text-muted-foreground">
                       Created {lesson.createdAt}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={getDifficultyVariant(lesson.difficulty)}>
+                      <Badge
+                        variant={getDifficultyVariant(lesson.difficulty)}
+                        className="text-xs"
+                      >
                         {lesson.difficulty}
                       </Badge>
-                      <Button size="sm">
+                      <Button size="sm" className="h-7 px-3 text-xs">
                         Record
                       </Button>
                     </div>
                   </div>
 
-                  <div>
+                  <div className="pt-2">
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Progress</span>
                       <span className="font-medium">{lesson.progress}%</span>
