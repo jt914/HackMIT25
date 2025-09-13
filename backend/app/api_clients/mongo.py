@@ -32,8 +32,22 @@ class MongoClient:
             print(f"Error checking if user exists for {email}: {e}")
             return False
 
+    def username_exists(self, username: str) -> bool:
+        """
+        Check if a user with the given username exists.
+        Returns True if found, False otherwise.
+        """
+        try:
+            return bool(self.users.find_one({"username": username}))
+        except Exception as e:
+            print(f"Error checking if username exists for {username}: {e}")
+            return False
+
     def create_account(self, account_details: AccountDetails) -> bool:
         if self.user_exists(account_details.email):
+            return False
+        
+        if self.username_exists(account_details.username):
             return False
 
         user_doc = {
@@ -221,6 +235,105 @@ class MongoClient:
             return self.users.find_one({"email": email})["slack_api_key"]
         except Exception as e:
             print(f"Error getting slack api key for {email}: {e}")
+            return None
+
+    def add_repository(self, email: str, repository_data: dict) -> str:
+        """
+        Add a repository to user's repositories list.
+        Returns the repository ID.
+        """
+        try:
+            import uuid
+            from datetime import datetime
+            
+            repository_id = str(uuid.uuid4())
+            repository_doc = {
+                "id": repository_id,
+                "name": repository_data.get("name"),
+                "url": repository_data.get("url"),
+                "added_at": datetime.utcnow(),
+                "is_processed": False,
+                **repository_data
+            }
+
+            # Use $push to add repository to repositories array
+            self.users.update_one({"email": email}, {"$push": {"repositories": repository_doc}})
+            return repository_id
+        except Exception as e:
+            print(f"Error adding repository for {email}: {e}")
+            raise e
+
+    def remove_repository(self, email: str, repository_id: str) -> bool:
+        """
+        Remove a repository from user's repositories list.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            result = self.users.update_one(
+                {"email": email}, 
+                {"$pull": {"repositories": {"id": repository_id}}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error removing repository {repository_id} for {email}: {e}")
+            return False
+
+    def get_user_repositories(self, email: str) -> list:
+        """
+        Get all repositories for a user.
+        Returns empty list if no repositories exist.
+        """
+        try:
+            user = self.users.find_one({"email": email})
+            if user and "repositories" in user:
+                return user["repositories"]
+            else:
+                return []
+        except Exception as e:
+            print(f"Error getting user repositories for {email}: {e}")
+            return []
+
+    def update_repository_processed_status(self, email: str, repository_id: str, is_processed: bool) -> bool:
+        """
+        Update the processed status of a repository.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            result = self.users.update_one(
+                {"email": email, "repositories.id": repository_id},
+                {"$set": {"repositories.$.is_processed": is_processed}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating repository processed status for {email}: {e}")
+            return False
+
+    def get_user_profile(self, email: str) -> dict:
+        """
+        Get complete user profile including repositories and integrations.
+        """
+        try:
+            user = self.users.find_one({"email": email})
+            if not user:
+                return None
+            
+            # Remove sensitive data
+            user_data = {
+                "email": user.get("email"),
+                "username": user.get("username"),
+                "created_at": user.get("created_at")
+            }
+            
+            repositories = user.get("repositories", [])
+            integrations = self.get_user_integrations(email)
+            
+            return {
+                "user": user_data,
+                "repositories": repositories,
+                "integrations": integrations
+            }
+        except Exception as e:
+            print(f"Error getting user profile for {email}: {e}")
             return None
 
 

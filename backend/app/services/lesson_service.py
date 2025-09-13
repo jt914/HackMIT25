@@ -46,25 +46,38 @@ class LessonGeneratorService:
         """Build a prompt for generating bite-sized lessons based on actual codebase and Linear issues."""
         
         prompt = f"""
-        Create a bite-sized interactive lesson about: "{query}"
+        STOP! READ THIS CAREFULLY BEFORE PROCEEDING:
         
-        CRITICAL FIRST STEP: You MUST use the available tools to research our actual codebase and Linear issues BEFORE creating the lesson:
+        You are about to create a lesson about: "{query}"
         
-        1. SEARCH CODEBASE: Use search_codebase tool to find relevant code implementations related to "{query}"
-           - Search for architectural patterns, components, services, and implementations
-           - Look for specific files, classes, and functions related to the topic
-           - Search multiple times with different keywords to get comprehensive coverage
+        MANDATORY TOOL USAGE - YOU CANNOT PROCEED WITHOUT THESE STEPS:
         
-        2. SEARCH LINEAR TICKETS: Use search_linear_ticket tool to find relevant issues, bugs, and feature requests
-           - Search for tickets discussing "{query}" or related concepts
-           - Look for implementation decisions, technical discussions, and known issues
-           - Find patterns in how the team approaches problems related to this topic
+        STEP 1: SEARCH CODEBASE (REQUIRED - MINIMUM 3 SEARCHES)
+        You MUST use the search_codebase tool AT LEAST 3 times with different search terms:
+        - Search 1: "{query}" (exact topic)
+        - Search 2: Related technical terms (e.g., if query is "authentication", search "auth", "login", "jwt", etc.)
+        - Search 3: Architectural components (e.g., "service", "controller", "model", etc.)
         
-        3. ANALYZE FINDINGS: Synthesize the search results to understand:
-           - How we actually implement "{query}" in our codebase
-           - What challenges and decisions the team has faced (from Linear tickets)
-           - Real code examples and architectural patterns we use
-           - Common issues, bugs, or improvements discussed in tickets
+        STEP 2: SEARCH LINEAR TICKETS (REQUIRED - MINIMUM 2 SEARCHES) 
+        You MUST use the search_linear_ticket tool AT LEAST 2 times:
+        - Search 1: "{query}" (exact topic)
+        - Search 2: Related issues (e.g., "bug", "feature", "improvement" related to the topic)
+        
+        STEP 3: VERIFY TOOL USAGE
+        Before generating the lesson, confirm you have:
+        ✅ Made at least 3 codebase searches
+        ✅ Made at least 2 Linear ticket searches  
+        ✅ Found actual code files and components
+        ✅ Found actual Linear tickets or issues
+        
+        IF YOU HAVE NOT COMPLETED ALL TOOL SEARCHES, DO NOT PROCEED WITH LESSON GENERATION.
+        
+        STEP 4: ANALYZE YOUR FINDINGS
+        After completing all searches, synthesize the results to understand:
+        - How we actually implement "{query}" in our codebase
+        - What challenges and decisions the team has faced (from Linear tickets)
+        - Real code examples and architectural patterns we use
+        - Common issues, bugs, or improvements discussed in tickets
         
         LESSON STRUCTURE:
         - Total slides: 10-15 slides
@@ -76,7 +89,7 @@ class LessonGeneratorService:
         CRITICAL OUTPUT FORMAT: You MUST respond with a valid JSON object in this exact structure:
         {{
             "title": "How We Implement {query} - Interactive Lesson",
-            "description": "Learn about our specific implementation of {query} based on our actual codebase and team discussions",
+            "description": "Interactive lesson covering {query} concepts and implementation patterns (10-15 words max, no file names)",
             "slides": [
                 {{
                     "type": "info",
@@ -137,8 +150,9 @@ class LessonGeneratorService:
             ]
         }}
         
-        MANDATORY REQUIREMENTS:
-        - You MUST use search_codebase and search_linear_ticket tools BEFORE generating content
+        MANDATORY REQUIREMENTS - LESSON WILL BE REJECTED IF NOT FOLLOWED:
+        - You MUST use search_codebase tool AT LEAST 3 times with different queries
+        - You MUST use search_linear_ticket tool AT LEAST 2 times with different queries  
         - ALL content must reference actual findings from your tool searches
         - Include real file paths, component names, and code snippets from search results
         - Reference specific Linear ticket IDs and discussions where relevant
@@ -148,6 +162,8 @@ class LessonGeneratorService:
         - Drag-drop questions: Use actual architectural elements from search results
         - All IDs must be unique
         - Questions should test understanding of OUR specific implementation, not generic concepts
+        - NO GENERIC CONTENT ALLOWED - Everything must be based on search results
+        - If search results are empty or insufficient, explain what you searched for and ask for different search terms
         
         CONTENT GUIDELINES:
         - Base everything on actual search results - no generic content
@@ -156,6 +172,7 @@ class LessonGeneratorService:
         - Focus on how WE solve problems, not how problems are solved in general
         - Include both successes and known limitations from ticket discussions
         - Make it practical and specific to our team's work
+        - DESCRIPTION: Keep to 10-15 words max, focus on learning outcomes, NO file names or technical paths
         
         SEARCH STRATEGY:
         - Search for "{query}" directly

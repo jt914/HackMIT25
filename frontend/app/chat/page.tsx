@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
 import {
   Home,
   MessageCircle,
@@ -29,6 +30,7 @@ interface Message {
   content: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  lessonId?: string;
 }
 
 export default function Chat() {
@@ -36,29 +38,40 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchUser();
 
-    // Check if there's an initial prompt from the modal
-    const initialPrompt = searchParams.get('prompt');
-    if (initialPrompt) {
-      setMessages([
-        {
-          id: '1',
-          content: initialPrompt,
-          sender: 'user',
-          timestamp: new Date()
-        },
-        {
+    // Check if there's an initial query from the modal
+    const initialQuery = searchParams.get('query');
+    const userEmail = searchParams.get('email');
+    const isGenerating = searchParams.get('generating') === 'true';
+    
+    if (initialQuery) {
+      const userMessage = {
+        id: '1',
+        content: initialQuery,
+        sender: 'user' as const,
+        timestamp: new Date()
+      };
+      
+      setMessages([userMessage]);
+      
+      if (isGenerating && userEmail) {
+        setIsGeneratingLesson(true);
+        // Start lesson generation immediately
+        generateLessonWithEmail(initialQuery, userEmail);
+      } else {
+        setMessages(prev => [...prev, {
           id: '2',
-          content: `I'd be happy to help you learn about "${initialPrompt}"! Let me create a personalized learning path for you. What specific aspects would you like to focus on?`,
+          content: `I'd be happy to help you learn about "${initialQuery}"! Let me create a personalized learning path for you. What specific aspects would you like to focus on?`,
           sender: 'bot',
           timestamp: new Date()
-        }
-      ]);
+        }]);
+      }
     } else {
       // Default welcome message
       setMessages([
@@ -74,22 +87,101 @@ export default function Chat() {
 
   const fetchUser = async () => {
     try {
-      const response = await fetch('/api/user/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
+      if (!isAuthenticated()) {
         router.push('/login');
+        return;
       }
+      
+      const email = getCurrentUserEmail();
+      if (!email) {
+        router.push('/login');
+        return;
+      }
+      
+      // For now, we'll create a basic user object from the JWT token
+      // In the future, we might want to fetch additional user data from the backend
+      setUser({
+        _id: email,
+        email: email,
+        name: email.split('@')[0], // Use part before @ as display name
+        enrolledLessons: []
+      });
     } catch (error) {
       console.error('Error fetching user:', error);
       router.push('/login');
     }
   };
 
+  const generateLesson = async (query: string) => {
+    if (!user?.email) return;
+    return generateLessonWithEmail(query, user.email);
+  };
+
+  const generateLessonWithEmail = async (query: string, email: string) => {
+    try {
+      // Show loading message
+      const loadingMessage: Message = {
+        id: Date.now().toString(),
+        content: `I'm generating a personalized lesson about "${query}" for you. This may take a moment...`,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, loadingMessage]);
+
+      const response = await fetch('http://localhost:8000/generate-lesson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          email: email
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.lesson) {
+        // Remove loading message and add success message
+        setMessages(prev => prev.slice(0, -1));
+        
+        const successMessage: Message = {
+          id: Date.now().toString(),
+          content: `Great! I've created a comprehensive lesson about "${data.lesson.title}" for you. It contains ${data.lesson.slides.length} slides and should take about ${data.lesson.estimated_duration_minutes} minutes to complete.`,
+          sender: 'bot',
+          timestamp: new Date(),
+          lessonId: data.lesson_id
+        };
+        setMessages(prev => [...prev, successMessage]);
+      } else {
+        // Show error message
+        setMessages(prev => prev.slice(0, -1));
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          content: "I'm sorry, there was an error generating your lesson. Please try again.",
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error generating lesson:', error);
+      setMessages(prev => prev.slice(0, -1));
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: "I'm sorry, there was an error connecting to the server. Please try again.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsGeneratingLesson(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      removeAuthToken();
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
@@ -233,6 +325,16 @@ export default function Chat() {
               <Card className={`max-w-[70%] ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : ''}`}>
                 <CardContent className="p-3">
                   <p className="text-sm">{message.content}</p>
+                  {message.lessonId && message.sender === 'bot' && (
+                    <div className="mt-3">
+                      <Button
+                        onClick={() => router.push(`/lesson/${message.lessonId}`)}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        Open Lesson
+                      </Button>
+                    </div>
+                  )}
                   <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                     {message.timestamp.toLocaleTimeString()}
                   </p>
@@ -249,7 +351,7 @@ export default function Chat() {
             </div>
           ))}
 
-          {isLoading && (
+          {(isLoading || isGeneratingLesson) && (
             <div className="flex gap-3 justify-start">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -278,7 +380,7 @@ export default function Chat() {
               placeholder="Ask me anything about learning programming..."
               className="flex-1"
             />
-            <Button type="submit" disabled={!inputMessage.trim() || isLoading}>
+            <Button type="submit" disabled={!inputMessage.trim() || isLoading || isGeneratingLesson}>
               <Send className="h-4 w-4" />
             </Button>
           </form>

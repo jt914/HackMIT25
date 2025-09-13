@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { setAuthToken } from "@/lib/backend-auth";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -21,7 +22,7 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('http://localhost:8000/login-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -30,9 +31,13 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok) {
+        // Store the JWT token using our auth utility
+        if (data.token) {
+          setAuthToken(data.token);
+        }
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Login failed');
+        setError(data.detail || 'Login failed');
       }
     } catch (error) {
       setError('Network error. Please try again.');

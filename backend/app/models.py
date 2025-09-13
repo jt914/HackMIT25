@@ -27,6 +27,21 @@ class AccountDetails(BaseModel):
     @classmethod
     def normalize_email_to_lowercase(cls, v):
         return v.lower() if isinstance(v, str) else v
+    
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        import re
+        if not isinstance(v, str):
+            raise ValueError("Username must be a string")
+        
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters long")
+        
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
+        
+        return v
 
 
 class LoginDetails(BaseModel):
@@ -194,6 +209,51 @@ class SlackApiKeyRequest(BaseModel):
 
     email: str = Field(..., description="User email for saving the lesson")
     api_key: str = Field(..., description="Slack api key for the user")
+
+
+class SlackIngestionRequest(BaseModel):
+    """Request model for slack message ingestion."""
+
+    email: str = Field(..., description="User email for the ingestion")
+    channel_id: str = Field(..., description="Slack channel ID to ingest messages from")
+    oldest: Optional[str] = Field(None, description="Oldest timestamp for messages (ISO format)")
+    latest: Optional[str] = Field(None, description="Latest timestamp for messages (ISO format)")
+    limit: int = Field(default=200, description="Maximum number of messages to ingest")
+
+
+class UserRepository(BaseModel):
+    """Model for user repository."""
+    
+    id: str = Field(..., description="Unique repository identifier")
+    name: str = Field(..., description="Repository name")
+    url: str = Field(..., description="Repository URL")
+    added_at: datetime = Field(default_factory=datetime.utcnow, description="When repository was added")
+    is_processed: bool = Field(default=False, description="Whether repository has been processed")
+
+
+class AddRepositoryRequest(BaseModel):
+    """Request model for adding a repository."""
+
+    email: str = Field(..., description="User email")
+    repository_url: str = Field(..., description="Repository URL to add")
+    repository_name: str = Field(..., description="Repository name")
+
+
+class RemoveRepositoryRequest(BaseModel):
+    """Request model for removing a repository."""
+
+    email: str = Field(..., description="User email")
+    repository_id: str = Field(..., description="Repository ID to remove")
+
+
+class GetUserProfileResponse(BaseModel):
+    """Response model for user profile data."""
+
+    success: bool
+    user: Optional[dict] = None
+    repositories: Optional[list[UserRepository]] = None
+    integrations: Optional[dict] = None
+    error: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

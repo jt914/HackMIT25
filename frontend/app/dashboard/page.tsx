@@ -3,29 +3,32 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { dummyLessons, type Lesson } from '@/lib/lessons';
+// Lesson interface matching the API response
+interface LessonSummary {
+  id: string;
+  title: string;
+  description: string;
+  estimated_duration_minutes: number;
+  created_at: string;
+}
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
 import { Input } from '@/components/ui/input';
 import {
   Home,
-  FolderOpen,
-  BookOpen,
   Settings,
   Plus,
   LogOut,
-  FileText,
   MoreHorizontal,
-  MessageCircle
+  MessageCircle,
+  Clock
 } from 'lucide-react';
 
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   enrolledLessons: string[];
@@ -33,7 +36,7 @@ interface User {
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [activeTab, setActiveTab] = useState('Home');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInput, setModalInput] = useState('');
@@ -41,48 +44,79 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchUser();
-    setLessons(dummyLessons);
   }, []);
+
+  useEffect(() => {
+    if (user?.email) {
+      fetchLessons();
+    }
+  }, [user]);
 
   const fetchUser = async () => {
     try {
-      const response = await fetch('/api/user/me');
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
+      if (!isAuthenticated()) {
         router.push('/login');
+        return;
       }
+      
+      const email = getCurrentUserEmail();
+      if (!email) {
+        router.push('/login');
+        return;
+      }
+      
+      // For now, we'll create a basic user object from the JWT token
+      // In the future, we might want to fetch additional user data from the backend
+      setUser({
+        id: email,
+        email: email,
+        name: email.split('@')[0], // Use part before @ as display name
+        enrolledLessons: []
+      });
     } catch (error) {
       console.error('Error fetching user:', error);
       router.push('/login');
     }
   };
 
+  const fetchLessons = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/lessons/${user.email}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.lessons) {
+          setLessons(data.lessons);
+        }
+      } else {
+        console.error('Failed to fetch lessons');
+      }
+    } catch (error) {
+      console.error('Error fetching lessons:', error);
+    }
+  };
+
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      removeAuthToken();
       router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  const handleModalSubmit = (e: React.FormEvent) => {
+  const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modalInput.trim()) {
-      router.push(`/chat?prompt=${encodeURIComponent(modalInput.trim())}`);
+    if (modalInput.trim() && user?.email) {
+      setIsModalOpen(false);
+      setModalInput('');
+      
+      // Redirect to chat page with generating state
+      router.push(`/chat?generating=true&query=${encodeURIComponent(modalInput.trim())}&email=${encodeURIComponent(user.email)}`);
     }
   };
 
-  const getDifficultyVariant = (difficulty: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (difficulty) {
-      case 'Beginner': return 'default';
-      case 'Intermediate': return 'secondary';
-      case 'Advanced': return 'destructive';
-      default: return 'outline';
-    }
-  };
 
   if (!user) {
     return (
@@ -177,7 +211,7 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {lessons.map((lesson) => (
-            <Link key={lesson._id} href={`/lesson/${lesson._id}`}>
+            <Link key={lesson.id} href={`/lesson/${lesson.id}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer border">
                 <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
@@ -190,65 +224,24 @@ export default function Dashboard() {
 
                 <CardContent className="space-y-4">
                   <div>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Data columns ({lesson.totalSteps}):
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium">Item ID</div>
-                      <div className="text-sm font-medium">Location</div>
-                      <div className="text-sm font-medium">Description</div>
-                      {lesson.activities.length > 3 && (
-                        <div className="text-sm text-primary">+{lesson.activities.length - 3} more</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <span className="text-sm text-primary hover:underline font-medium">
-                        {lesson.category.toLowerCase().replace(' ', '_')}_sample.csv
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {lesson.completedSteps} rows • 0.{Math.floor(Math.random() * 9) + 1} KB
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">Sample data:</div>
-                    <div className="text-xs text-muted-foreground">
-                      {lesson.title.includes('Python') && 'THR001 | Trench A3 | Pottery | Fragment of a red-slip...'}
-                      {lesson.title.includes('React') && 'COMP001 | Building A | Component | Modern React patterns...'}
-                      {lesson.title.includes('Database') && 'DB001 | Server B1 | Schema | Relational database design...'}
-                      {lesson.title.includes('Machine') && 'ML001 | Algorithm C | Model | Supervised learning approach...'}
-                      {lesson.title.includes('JavaScript') && 'JS001 | Module D | Function | Arrow functions and async...'}
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {lesson.description}
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-between pt-2">
                     <div className="text-xs text-muted-foreground">
-                      Created {lesson.createdAt}
+                      Created {new Date(lesson.created_at).toLocaleDateString()}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={getDifficultyVariant(lesson.difficulty)}
-                        className="text-xs"
-                      >
-                        {lesson.difficulty}
+                      <Badge variant="secondary" className="text-xs">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {lesson.estimated_duration_minutes} min
                       </Badge>
-                      <Button size="sm" className="h-7 px-3 text-xs">
-                        Record
+                      <Button size="sm" className="h-7 px-3 text-xs bg-primary hover:bg-primary/90">
+                        Start
                       </Button>
                     </div>
-                  </div>
-
-                  <div className="pt-2">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-medium">{lesson.progress}%</span>
-                    </div>
-                    <Progress value={lesson.progress} className="h-2" />
                   </div>
                 </CardContent>
               </Card>

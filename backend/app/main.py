@@ -17,6 +17,11 @@ from models import (
     ChatRequest,
     ChatResponse,
     SlackApiKeyRequest,
+    SlackIngestionRequest,
+    AddRepositoryRequest,
+    RemoveRepositoryRequest,
+    GetUserProfileResponse,
+    UserRepository,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from auth import create_jwt_token
@@ -53,8 +58,16 @@ async def root():
 @app.post("/create-account", response_model=AuthResponse)
 async def create_account(account_data: AccountDetails):
     try:
+        # Check for existing email
+        if mongo_client.user_exists(account_data.email):
+            raise HTTPException(status_code=400, detail="Email already exists")
+        
+        # Check for existing username
+        if mongo_client.username_exists(account_data.username):
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
         if not mongo_client.create_account(account_data):
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise HTTPException(status_code=400, detail="Failed to create account")
 
         token_data = create_jwt_token(account_data.email)
         return AuthResponse(**token_data)
@@ -237,6 +250,120 @@ async def get_lesson_by_id(email: str, lesson_id: str):
         raise
     except Exception as e:
         print(f"Error getting lesson {lesson_id} for {email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/process-slack-messages", response_model=RepositoryResponse)
+async def process_slack_messages(request: SlackIngestionRequest):
+    """
+    Process Slack messages from a specific channel.
+    """
+    try:
+        from database_builder.slack_ingestion import SlackMessageIngester
+        from datetime import datetime
+        
+        ingester = SlackMessageIngester(email=request.email)
+        
+        # Convert string timestamps to datetime objects if provided
+        oldest = None
+        latest = None
+        if request.oldest:
+            oldest = datetime.fromisoformat(request.oldest.replace('Z', '+00:00'))
+        if request.latest:
+            latest = datetime.fromisoformat(request.latest.replace('Z', '+00:00'))
+        
+        result = await ingester.ingest_messages(
+            channel_id=request.channel_id,
+            oldest=oldest,
+            latest=latest,
+            limit=request.limit
+        )
+        
+        return RepositoryResponse(
+            success=result["success"],
+            repository=f"slack-channel-{request.channel_id}",
+            sandbox_id=None,
+            output=result.get("output"),
+            error=result.get("error"),
+        )
+    except Exception as e:
+        print(f"Error processing Slack messages for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/user-profile/{email}", response_model=GetUserProfileResponse)
+async def get_user_profile(email: str):
+    """
+    Get complete user profile including repositories and integrations.
+    """
+    try:
+        profile_data = mongo_client.get_user_profile(email)
+        if not profile_data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Convert repositories to UserRepository objects
+        repositories = [UserRepository(**repo) for repo in profile_data.get("repositories", [])]
+        
+        return GetUserProfileResponse(
+            success=True,
+            user=profile_data.get("user"),
+            repositories=repositories,
+            integrations=profile_data.get("integrations")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting user profile for {email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/add-repository", response_model=RepositoryResponse)
+async def add_repository(request: AddRepositoryRequest):
+    """
+    Add a repository to user's repository list.
+    """
+    try:
+        repository_data = {
+            "name": request.repository_name,
+            "url": request.repository_url
+        }
+        
+        repository_id = mongo_client.add_repository(request.email, repository_data)
+        
+        return RepositoryResponse(
+            success=True,
+            repository=request.repository_url,
+            sandbox_id=repository_id,
+            output=f"Repository '{request.repository_name}' added successfully",
+            error=None
+        )
+    except Exception as e:
+        print(f"Error adding repository for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/remove-repository", response_model=RepositoryResponse)
+async def remove_repository(request: RemoveRepositoryRequest):
+    """
+    Remove a repository from user's repository list.
+    """
+    try:
+        success = mongo_client.remove_repository(request.email, request.repository_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Repository not found")
+        
+        return RepositoryResponse(
+            success=True,
+            repository=request.repository_id,
+            sandbox_id=None,
+            output="Repository removed successfully",
+            error=None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error removing repository for {request.email}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

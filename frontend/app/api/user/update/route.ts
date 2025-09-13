@@ -16,10 +16,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { name, email } = await request.json();
+    const { username, email } = await request.json();
 
-    if (!name || !email) {
-      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
+    if (!username || !email) {
+      return NextResponse.json({ error: 'Username and email are required' }, { status: 400 });
+    }
+
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!usernameRegex.test(username)) {
+      return NextResponse.json({ error: 'Username can only contain letters, numbers, underscores, and hyphens' }, { status: 400 });
+    }
+
+    if (username.length < 3) {
+      return NextResponse.json({ error: 'Username must be at least 3 characters long' }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -27,18 +37,28 @@ export async function PUT(request: NextRequest) {
     const users = db.collection('users');
 
     // Check if email is already taken by another user
-    const existingUser = await users.findOne({
+    const existingEmailUser = await users.findOne({
       email,
       _id: { $ne: new ObjectId(decoded.userId) }
     });
 
-    if (existingUser) {
+    if (existingEmailUser) {
       return NextResponse.json({ error: 'Email already taken' }, { status: 400 });
+    }
+
+    // Check if username is already taken by another user
+    const existingUsernameUser = await users.findOne({
+      username,
+      _id: { $ne: new ObjectId(decoded.userId) }
+    });
+
+    if (existingUsernameUser) {
+      return NextResponse.json({ error: 'Username already taken' }, { status: 400 });
     }
 
     const result = await users.updateOne(
       { _id: new ObjectId(decoded.userId) },
-      { $set: { name, email } }
+      { $set: { username, email } }
     );
 
     if (result.matchedCount === 0) {

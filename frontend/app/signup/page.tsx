@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { setAuthToken } from "@/lib/backend-auth";
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -21,19 +22,37 @@ export default function Signup() {
     setLoading(true);
     setError('');
 
+    // Validate username
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!usernameRegex.test(name)) {
+      setError('Username can only contain letters, numbers, underscores, and hyphens');
+      setLoading(false);
+      return;
+    }
+
+    if (name.length < 3) {
+      setError('Username must be at least 3 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('http://localhost:8000/create-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ username: name, email, password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        // Store the JWT token using our auth utility
+        if (data.token) {
+          setAuthToken(data.token);
+        }
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Signup failed');
+        setError(data.detail || 'Signup failed');
       }
     } catch (error) {
       setError('Network error. Please try again.');
@@ -65,13 +84,13 @@ export default function Signup() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">Username</Label>
               <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your full name"
+                placeholder="Enter your username (no spaces or special characters)"
                 required
               />
             </div>
