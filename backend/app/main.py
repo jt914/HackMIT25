@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
-from database_builder.linear_ingestion import LinearTicketIngester
-from models import (
+from app.database_builder.linear_ingestion import LinearTicketIngester
+from app.models import (
     RepositoryRequest,
     RepositoryResponse,
     AuthResponse,
@@ -24,12 +24,12 @@ from models import (
     UserRepository,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from auth import create_jwt_token
-from api_clients.mongo import mongo_client
-from database_builder.daytona_chunk_runner import DaytonaChunkRunner
-from agent.agent import Agent
+from app.auth import create_jwt_token
+from app.api_clients.mongo import mongo_client
+from app.database_builder.daytona_chunk_runner import DaytonaChunkRunner
+from app.agent.agent import Agent
 import json
-import constants
+import app.constants as constants
 
 app = FastAPI(
     title="Daytona Chunk Runner API",

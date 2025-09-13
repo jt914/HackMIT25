@@ -16,7 +16,7 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.postprocessor import SimilarityPostprocessor
 import pinecone
-import constants
+import app.constants as constants
 
 
 class QueryRunner:

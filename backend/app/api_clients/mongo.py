@@ -1,11 +1,11 @@
 import pymongo
 from passlib.context import CryptContext
 
-from models import (
+from app.models import (
     AccountDetails,
     LoginDetails,
 )
-from constants import MONGO_USERNAME, MONGO_PASSWORD
+from app.constants import MONGO_USERNAME, MONGO_PASSWORD
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

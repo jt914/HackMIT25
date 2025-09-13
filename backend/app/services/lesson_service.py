@@ -4,8 +4,8 @@ Service for generating bite-sized lessons with MCQ and drag-drop questions.
 """
 
 from typing import Dict, Optional
-from agent.agent import Agent
-from models import Lesson, InfoSlide, MCQQuestion, MCQOption, DragDropQuestion, DragDropItem
+from app.agent.agent import Agent
+from app.models import Lesson, InfoSlide, MCQQuestion, MCQOption, DragDropQuestion, DragDropItem
 import json
 import uuid
 from datetime import datetime

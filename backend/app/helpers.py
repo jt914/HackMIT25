@@ -1,6 +1,6 @@
 import asyncio
-from api_clients.mongo import mongo_client
-import constants
+from app.api_clients.mongo import mongo_client
+import app.constants as constants
 
 # mongo_client.update_user_integrations("josephtso914@gmail.com", "github", True)
 
@@ -12,7 +12,7 @@ import constants
 # )
 # print(mongo_client.get_linear_api_key(email="josephtso914@gmail.com"))
 
-from agent.agent import Agent
+from app.agent.agent import Agent
 agent = Agent(username="josephtso914")
 print(asyncio.run(agent.query("Generate me a simple json formatted lesson about how user data gets stored in the database, and everthing I need to know about the database schema. Use tools to get context about my specific codebase.")))
 

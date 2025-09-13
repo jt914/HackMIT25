@@ -10,9 +10,9 @@ from llama_index.llms.openai import OpenAI
 from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.core.workflow import Context
 from llama_index.core.memory import Memory
-import agent.agent_tools as agent_tools
-import agent.agent_helpers as agent_helpers
-import constants
+import app.agent.agent_tools as agent_tools
+import app.agent.agent_helpers as agent_helpers
+import app.constants as constants
 
 
 class Agent:

@@ -12,9 +12,9 @@ from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.schema import TextNode
 import pinecone
-import constants
-from api_clients.slack_client import SlackClient
-from api_clients.mongo import mongo_client
+import app.constants as constants
+from app.api_clients.slack_client import SlackClient
+from app.api_clients.mongo import mongo_client
 
 
 class SlackMessageIngester:

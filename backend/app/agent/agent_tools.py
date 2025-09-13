@@ -1,7 +1,7 @@
 from typing import List
 from llama_index.core import VectorStoreIndex
 from llama_index.core.tools import FunctionTool
-import agent.agent_helpers as agent_helpers
+import app.agent.agent_helpers as agent_helpers
 
 def create_codebase_search_tool(index_name: str) -> FunctionTool:
     def search_func(query: str, k: int = 5) -> str:

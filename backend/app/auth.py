@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import Header, HTTPException
-from constants import SECRET_KEY
+from app.constants import SECRET_KEY
 
 
 def create_jwt_token(email: str) -> dict:

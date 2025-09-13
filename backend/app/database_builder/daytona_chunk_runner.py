@@ -2,8 +2,8 @@ import os
 from typing import Dict, Any
 
 from daytona import Daytona, CreateSandboxFromSnapshotParams, DaytonaConfig
-import constants
-from api_clients.mongo import mongo_client
+import app.constants as constants
+from app.api_clients.mongo import mongo_client
 
 
 class DaytonaChunkRunner:

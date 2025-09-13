@@ -4,7 +4,7 @@ Linear API client for fetching tickets and team information.
 
 from typing import List, Dict, Any
 import aiohttp
-import constants
+import app.constants as constants
 
 
 class LinearClient:

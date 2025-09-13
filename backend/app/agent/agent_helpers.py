@@ -8,7 +8,7 @@ from typing import Dict
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import VectorStoreIndex
-import constants
+import app.constants as constants
 
 
 def create_vectorstore_index(index_name: str = "codebase", namespace: str = "codevectors") -> VectorStoreIndex:
