@@ -1,0 +1,7 @@
+node_modules
+.env
+__pycache__/
+.claude/
+.env
+.python-version
+.DS_STORE
