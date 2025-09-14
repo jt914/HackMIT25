@@ -194,6 +194,12 @@ export default function LessonPage() {
 
   const nextSlide = () => {
     if (lesson && currentSlideIndex < lesson.slides.length - 1) {
+      // Auto-mark current slide as complete when advancing (except for questions that need to be answered)
+      const currentSlide = lesson.slides[currentSlideIndex];
+      if (currentSlide.type === 'info' || currentSlide.type === 'video') {
+        markSlideComplete(currentSlide.id);
+      }
+      
       setCurrentSlideIndex(currentSlideIndex + 1);
       resetSlideState();
     }
@@ -414,22 +420,7 @@ export default function LessonPage() {
                 </div>
               )}
 
-              <div className="pt-4">
-                <Button 
-                  onClick={() => markSlideComplete(slide.id)}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={completedSlides.has(slide.id)}
-                >
-                  {completedSlides.has(slide.id) ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Completed
-                    </>
-                  ) : (
-                    'Mark as Complete'
-                  )}
-                </Button>
-              </div>
+              {/* Info slides are auto-marked complete when clicking Next */}
             </CardContent>
           </Card>
         );
@@ -464,22 +455,7 @@ export default function LessonPage() {
                 </div>
               )}
 
-              <div className="pt-4">
-                <Button 
-                  onClick={() => markSlideComplete(slide.id)}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={completedSlides.has(slide.id)}
-                >
-                  {completedSlides.has(slide.id) ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Completed
-                    </>
-                  ) : (
-                    'Mark as Complete'
-                  )}
-                </Button>
-              </div>
+              {/* Video slides are auto-marked complete when clicking Next */}
             </CardContent>
           </Card>
         );

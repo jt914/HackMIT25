@@ -6,10 +6,11 @@ This implementation adds video generation capability to the lesson creation syst
 ## Changes Made
 
 ### 1. Backend - Agent Tools (`backend/app/agent/agent_tools.py`)
-- **Added**: `create_video_generation_tool()` function that wraps the video creation script
-- **Added**: `create_lesson_agent_tools()` function that includes video generation for lesson-specific agents
+- **Added**: `create_simple_video_tool()` function that wraps the video creation script with simple parameters
+- **Updated**: Both `create_agent_tools()` and `create_lesson_agent_tools()` now include the simple video generation tool
 - **Features**: 
-  - JSON validation for video script input
+  - Simple parameter interface (title, narration, bullet_points)
+  - Automatic JSON script generation
   - Temporary file management
   - Error handling and logging
   - Integration with existing video creation script
@@ -61,32 +62,19 @@ This implementation adds video generation capability to the lesson creation syst
 2. `LessonGeneratorService` creates a specialized agent with video tools
 3. Agent searches codebase and optionally decides to create videos
 4. If agent wants to create a video:
-   - Calls `generate_educational_video` tool with JSON script
-   - Tool creates video using Manim and uploads to Imgur
+   - Calls `create_educational_video` tool with simple parameters (title, narration, bullet_points)
+   - Tool creates video using Manim and uploads to Cloudinary
    - Tool returns shareable video URL
    - Agent includes video slide in lesson with the URL
 
 ### 2. Video Creation Tool Call
 ```python
-# Agent makes this tool call:
-generate_educational_video({
-    "title": "Key Authentication Concepts",
-    "audio": {
-        "narration": "Authentication in our system works through...",
-        "language": "en"
-    },
-    "bullets": [
-        {"text": "JWT tokens for session management"},
-        {"text": "Role-based access control"},
-        {"text": "Secure password hashing"}
-    ],
-    "timing": {
-        "bullet_appear_duration": 0.8,
-        "bullet_highlight_duration": 2.5,
-        "pause_between_bullets": 0.5,
-        "final_pause": 2.0
-    }
-})
+# Agent makes this tool call with simple parameters:
+create_educational_video(
+    title="Key Authentication Concepts",
+    narration="Authentication in our system works through JWT tokens for session management, role-based access control, and secure password hashing. Let me explain each of these concepts...",
+    bullet_points="JWT tokens for session management, Role-based access control, Secure password hashing"
+)
 ```
 
 ### 3. Frontend Video Display

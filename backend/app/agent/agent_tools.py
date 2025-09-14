@@ -200,55 +200,49 @@ def create_slack_search_tool(index_name: str) -> FunctionTool:
         Returns: Message content with channel, user, timestamp and metadata with similarity scores.""",
     )
 
-def create_video_generation_tool() -> FunctionTool:
-    def generate_video_func(video_script) -> str:  # Remove type hint to accept any type
+def create_simple_video_tool() -> FunctionTool:
+    """Simple wrapper for video generation that takes individual parameters."""
+    def simple_video_func(title: str, narration: str, bullet_points: str) -> str:
         try:
-            print("🎬 TOOL CALL: generate_educational_video")
-            print(f"   📝 Script type: {type(video_script)}")
-            print(f"   📝 Script content: {video_script}")
+            print("🎬 TOOL CALL: create_educational_video")
+            print(f"   📝 Title: {title}")
+            print(f"   🔊 Narration: {len(narration)} characters")
+            print(f"   📋 Bullet points: {bullet_points}")
             
-            # Handle different input types (string, dict, AttributedDict)
-            if isinstance(video_script, str):
-                try:
-                    script_data = json.loads(video_script)
-                except json.JSONDecodeError as e:
-                    return json.dumps({
-                        "status": "error",
-                        "error": f"Error parsing video script JSON: {str(e)}. Please provide valid JSON."
-                    })
-            elif hasattr(video_script, '__dict__') or isinstance(video_script, dict):
-                # Handle AttributedDict or regular dict
-                script_data = dict(video_script) if hasattr(video_script, '__dict__') else video_script
-                print(f"   📝 Converted to dict: {script_data}")
-            else:
+            # Parse bullet points (assume comma or newline separated)
+            bullets = []
+            for point in bullet_points.replace('\n', ',').split(','):
+                point = point.strip()
+                if point:
+                    # Remove leading bullet symbols if present
+                    point = point.lstrip('•-*').strip()
+                    if point:
+                        bullets.append({"text": point})
+            
+            if not bullets:
                 return json.dumps({
                     "status": "error",
-                    "error": f"Unsupported video_script type: {type(video_script)}. Expected string or dict."
+                    "error": "No valid bullet points found. Please provide bullet points separated by commas or newlines."
                 })
             
-            # Validate required fields
-            required_fields = ["title", "audio", "bullets"]
-            for field in required_fields:
-                if field not in script_data:
-                    return json.dumps({
-                        "status": "error",
-                        "error": f"Missing required field '{field}' in video script"
-                    })
-            
-            if "narration" not in script_data["audio"]:
-                return json.dumps({
-                    "status": "error",
-                    "error": "Missing 'narration' in audio section"
-                })
-            
-            if not isinstance(script_data["bullets"], list) or len(script_data["bullets"]) == 0:
-                return json.dumps({
-                    "status": "error",
-                    "error": "'bullets' must be a non-empty list"
-                })
+            # Create the script structure
+            script_data = {
+                "title": title,
+                "audio": {
+                    "narration": narration,
+                    "language": "en"
+                },
+                "bullets": bullets,
+                "timing": {
+                    "bullet_appear_duration": 0.8,
+                    "bullet_highlight_duration": 2.5,
+                    "pause_between_bullets": 0.5,
+                    "final_pause": 2.0
+                }
+            }
             
             # Create a temporary JSON file
-            script_hash = hash(str(script_data))  # Use string representation for hash
+            script_hash = abs(hash(str(script_data)))  # Use abs to avoid negative hashes
             temp_script_file = f"temp_video_script_{script_hash}.json"
             
             try:
@@ -256,23 +250,24 @@ def create_video_generation_tool() -> FunctionTool:
                 with open(temp_script_file, 'w') as f:
                     json.dump(script_data, f, indent=2)
                 
-                print(f"   🎥 Creating video from script: {script_data['title']}")
-                print(f"   🔊 Narration: {len(script_data['audio']['narration'])} characters")
-                print(f"   📋 Bullet points: {len(script_data['bullets'])}")
+                print(f"   🎥 Creating video from script: {title}")
+                print(f"   📋 Processing {len(bullets)} bullet points")
                 
                 # Generate the video
                 result = create_text_bullet_video_from_json(
                     temp_script_file, 
-                    output_filename=f"lesson_video_{script_hash}.mp4",
-                    upload_to_imgur_flag=True
+                    output_filename=f"educational_video_{script_hash}.mp4",
+                    upload_to_cloudinary_flag=True
                 )
                 
-                if result and result.get("imgur_link"):
+                if result and result.get("cloudinary_link"):
                     print(f"   ✅ Video generated and uploaded successfully!")
                     return json.dumps({
                         "status": "success",
-                        "video_url": result["imgur_link"],
-                        "local_path": result.get("local_path")
+                        "video_url": result["cloudinary_link"],
+                        "local_path": result.get("local_path"),  # Will be None if deleted after upload
+                        "title": title,
+                        "message": "Video uploaded to Cloudinary and local file cleaned up" if not result.get("local_path") else "Video uploaded to Cloudinary"
                     })
                 elif result and result.get("local_path"):
                     print(f"   ⚠️ Video created but upload failed")
@@ -280,13 +275,14 @@ def create_video_generation_tool() -> FunctionTool:
                         "status": "partial_success",
                         "video_url": None,
                         "local_path": result.get("local_path"),
-                        "error": "Upload failed"
+                        "error": "Upload failed",
+                        "title": title
                     })
                 else:
                     print(f"   ❌ Video generation failed")
                     return json.dumps({
                         "status": "error",
-                        "error": "Video generation failed. Please check the script format and try again."
+                        "error": "Video generation failed. Please check the inputs and try again."
                     })
                     
             finally:
@@ -295,7 +291,7 @@ def create_video_generation_tool() -> FunctionTool:
                     os.remove(temp_script_file)
                     
         except Exception as e:
-            error_msg = f"Error generating video: {str(e)}"
+            error_msg = f"Error creating video: {str(e)}"
             print(error_msg)
             return json.dumps({
                 "status": "error",
@@ -303,48 +299,35 @@ def create_video_generation_tool() -> FunctionTool:
             })
     
     return FunctionTool.from_defaults(
-        fn=generate_video_func,
-        name="generate_educational_video",
-        description="""Generate an educational video with narration and bullet points for lesson content.
-        IMPORTANT: This tool should ONLY be used when creating lessons, not for general chat or other purposes.
+        fn=simple_video_func,
+        name="create_educational_video",
+        description="""Create an educational video with narration and bullet points.
+        This tool automatically generates a video with synchronized narration and animated bullet points.
         
-        Input: JSON string with this exact structure:
-        {
-            "title": "Video title",
-            "audio": {
-                "narration": "Full narration text that will be spoken",
-                "language": "en" (optional, defaults to "en")
-            },
-            "bullets": [
-                {"text": "First key point"},
-                {"text": "Second key point"},
-                {"text": "Third key point"}
-            ],
-            "timing": {
-                "bullet_appear_duration": 0.8,
-                "bullet_highlight_duration": 2.5,
-                "pause_between_bullets": 0.5,
-                "final_pause": 2.0
-            }
-        }
+        Parameters:
+        - title: Video title (string)
+        - narration: Full narration text that will be spoken aloud (string)
+        - bullet_points: Key points separated by commas or newlines (string)
         
-        Returns: JSON string with fields: 
-        {{"status": "success|partial_success|error", "video_url": string|null, "local_path": string|null, "error": string|null}}
-        The video will have synchronized narration with animated bullet points appearing one by one."""
+        Returns: JSON with status and video_url field containing the Cloudinary link if successful.
+        Example: {"status": "success", "video_url": "https://res.cloudinary.com/your-cloud/video/upload/v123/educational_videos/generated_video_abc123.mp4", "title": "Video Title"}
+        
+        The video will show the title, then display bullet points one by one while the narration plays."""
     )
 
 def create_agent_tools(index_name: str) -> List[FunctionTool]:
     return [
         create_codebase_search_tool(index_name), 
         create_linear_ticket_search_tool(index_name),
-        create_slack_search_tool(index_name)
+        create_slack_search_tool(index_name),
+        create_simple_video_tool()
     ]
 
 def create_lesson_agent_tools(index_name: str) -> List[FunctionTool]:
-    """Create tools specifically for lesson generation, including video generation."""
+    """Create tools specifically for lesson generation. Now uses the same simple video tool as regular agents."""
     return [
         create_codebase_search_tool(index_name), 
         create_linear_ticket_search_tool(index_name),
         create_slack_search_tool(index_name),
-        create_video_generation_tool()
+        create_simple_video_tool()
     ]
