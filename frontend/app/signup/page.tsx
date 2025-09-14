@@ -63,73 +63,83 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Link href="/" className="flex items-center justify-center mb-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-2">
-              <span className="text-primary-foreground font-bold text-lg">O</span>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 via-transparent to-amber-400/10"></div>
+      <Card className="w-full max-w-lg border-0 shadow-2xl bg-white/90 backdrop-blur-lg relative z-10">
+        <CardHeader className="text-center pb-8 pt-8">
+          <Link href="/" className="flex items-center justify-center mb-6 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="font-bold text-xl">OnboardCademy</span>
+            <span className="font-bold text-2xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">CodeByte</span>
           </Link>
-          <CardTitle className="text-2xl">Create your account</CardTitle>
-          <p className="text-muted-foreground">Start your coding journey today!</p>
+          <CardTitle className="text-3xl font-bold text-gray-900 mb-3">Create your account</CardTitle>
+          <p className="text-gray-600 text-lg">Start your coding journey today!</p>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="px-8 pb-8">
           {error && (
-            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-6 animate-in slide-in-from-top-2">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Username</Label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="name" className="text-gray-700 font-medium">Username</Label>
               <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your username (no spaces or special characters)"
+                placeholder="Choose a unique username"
+                className="h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 transition-all duration-300"
                 required
               />
+              <p className="text-sm text-gray-500">Letters, numbers, underscores, and hyphens only</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-3">
+              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="Enter your email address"
+                className="h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 transition-all duration-300"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-3">
+              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password (min. 6 characters)"
+                placeholder="Create a strong password"
+                className="h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 transition-all duration-300"
                 minLength={6}
                 required
               />
+              <p className="text-sm text-gray-500">Minimum 6 characters</p>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+              disabled={loading}
+            >
               {loading ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-primary hover:underline">
+              <Link href="/login" className="font-semibold text-orange-600 hover:text-orange-700 hover:underline transition-colors">
                 Sign in
               </Link>
             </p>

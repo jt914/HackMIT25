@@ -32,8 +32,8 @@ import json
 import app.constants as constants
 
 app = FastAPI(
-    title="Daytona Chunk Runner API",
-    description="Simple API for processing GitHub repositories using Daytona containers",
+    title="CodeByte API",
+    description="AI-powered learning platform API for creating personalized coding lessons",
     version="1.0.0",
 )
 
@@ -221,7 +221,7 @@ async def get_user_lessons(email: str):
     """
     try:
         lesson_summaries = mongo_client.get_user_lesson_summaries(email)
-        from models import LessonSummary
+        from app.models import LessonSummary
         
         # Convert to LessonSummary objects
         lessons = [LessonSummary(**summary) for summary in lesson_summaries]

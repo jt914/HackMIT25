@@ -229,23 +229,23 @@ function ChatComponent() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-amber-50/20 to-yellow-50/30 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-card shadow-lg border-r fixed h-full overflow-y-auto">
+      <div className="w-64 bg-white/80 backdrop-blur-lg shadow-xl border-r border-orange-100 fixed h-full overflow-y-auto">
         <div className="p-6">
-          <Link href="/dashboard" className="flex items-center">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
-              <span className="text-primary-foreground font-bold text-lg">O</span>
+          <Link href="/dashboard" className="flex items-center group">
+            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="font-bold text-xl">OnboardCademy</span>
+            <span className="font-bold text-xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">CodeByte</span>
           </Link>
         </div>
 
-        <nav className="mt-6">
+        <nav className="mt-8">
           <div className="px-6 py-2">
             <Button
               variant="ghost"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
               asChild
             >
               <Link href="/dashboard">
@@ -258,9 +258,9 @@ function ChatComponent() {
           <div className="px-6 py-1">
             <Button
               variant="secondary"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <MessageCircle className="mr-3 h-4 w-4 text-primary" />
+              <MessageCircle className="mr-3 h-4 w-4" />
               Chat
             </Button>
           </div>
@@ -268,7 +268,7 @@ function ChatComponent() {
           <div className="px-6 py-1">
             <Button
               variant="ghost"
-              className="w-full justify-start"
+              className="w-full justify-start rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
               asChild
             >
               <Link href="/settings">
@@ -279,22 +279,23 @@ function ChatComponent() {
           </div>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t bg-card">
+        <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t border-orange-100 bg-white/80 backdrop-blur-lg">
           <div className="flex items-center">
             <Avatar className="mr-3">
-              <AvatarFallback className="bg-primary text-primary-foreground">
+              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg">
                 {user.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <p className="text-sm font-medium truncate text-gray-900">{user.name}</p>
+              <p className="text-xs text-gray-600 truncate">{user.email}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLogout}
               title="Logout"
+              className="hover:bg-orange-50 hover:text-orange-600 transition-colors rounded-lg"
             >
               <LogOut className="h-4 w-4" />
             </Button>
@@ -304,48 +305,52 @@ function ChatComponent() {
 
       {/* Main Chat Area */}
       <main className="flex-1 ml-64 flex flex-col h-screen">
-        <div className="border-b bg-card px-6 py-4">
-          <h1 className="text-2xl font-bold">AI Learning Assistant</h1>
-          <p className="text-muted-foreground">Get personalized help with your learning journey</p>
+        <div className="border-b border-orange-100 bg-white/80 backdrop-blur-lg px-8 py-6 shadow-sm">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">AI Learning Assistant</h1>
+          <p className="text-gray-600 mt-2">Get personalized help with your learning journey</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in-0 slide-in-from-bottom-2 duration-500`}
             >
               {message.sender === 'bot' && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    <Bot className="h-4 w-4" />
+                <Avatar className="h-10 w-10 shadow-lg">
+                  <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+                    <Bot className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
               )}
 
-              <Card className={`max-w-[70%] ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : ''}`}>
-                <CardContent className="p-3">
-                  <p className="text-sm">{message.content}</p>
+              <Card className={`max-w-[75%] border-0 shadow-lg ${
+                message.sender === 'user'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white'
+                  : 'bg-white/80 backdrop-blur-sm'
+              }`}>
+                <CardContent className="p-4">
+                  <p className="leading-relaxed">{message.content}</p>
                   {message.lessonId && message.sender === 'bot' && (
-                    <div className="mt-3">
+                    <div className="mt-4">
                       <Button
                         onClick={() => router.push(`/lesson/${message.lessonId}`)}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         Open Lesson
                       </Button>
                     </div>
                   )}
-                  <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                  <p className={`text-xs mt-2 ${message.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
                     {message.timestamp.toLocaleTimeString()}
                   </p>
                 </CardContent>
               </Card>
 
               {message.sender === 'user' && (
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-secondary">
-                    <User className="h-4 w-4" />
+                <Avatar className="h-10 w-10 shadow-lg">
+                  <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white">
+                    <User className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
               )}
@@ -353,18 +358,18 @@ function ChatComponent() {
           ))}
 
           {(isLoading || isGeneratingLesson) && (
-            <div className="flex gap-3 justify-start">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  <Bot className="h-4 w-4" />
+            <div className="flex gap-4 justify-start animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
+              <Avatar className="h-10 w-10 shadow-lg">
+                <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+                  <Bot className="h-5 w-5" />
                 </AvatarFallback>
               </Avatar>
-              <Card>
-                <CardContent className="p-3">
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-4">
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                 </CardContent>
               </Card>
@@ -373,15 +378,19 @@ function ChatComponent() {
         </div>
 
         {/* Message Input */}
-        <div className="border-t bg-card p-4">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
+        <div className="border-t border-orange-100 bg-white/80 backdrop-blur-lg p-6 shadow-lg">
+          <form onSubmit={handleSendMessage} className="flex gap-4">
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Ask me anything about learning programming..."
-              className="flex-1"
+              className="flex-1 h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 bg-white/80 backdrop-blur-sm transition-all duration-300"
             />
-            <Button type="submit" disabled={!inputMessage.trim() || isLoading || isGeneratingLesson}>
+            <Button
+              type="submit"
+              disabled={!inputMessage.trim() || isLoading || isGeneratingLesson}
+              className="h-12 px-6 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
+            >
               <Send className="h-4 w-4" />
             </Button>
           </form>
