@@ -285,34 +285,23 @@ export default function Dashboard() {
       {/* Custom Modal Overlay */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-lg flex items-center justify-center animate-in fade-in-0 duration-500"
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center animate-in fade-in-0 duration-500"
           onClick={() => {
             setIsModalOpen(false);
             setModalInput('');
           }}
         >
           <div
-            className="animate-in fade-in-0 slide-in-from-bottom-8 duration-700 scale-in-0"
+            className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 scale-in-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <form onSubmit={handleModalSubmit} className="space-y-8">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
-                  <Sparkles className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-4xl font-bold text-white mb-3 animate-in slide-in-from-top-4 duration-700 delay-200">
-                  What do you want to learn today?
-                </h2>
-                <p className="text-white/80 text-lg animate-in slide-in-from-top-2 duration-700 delay-300">
-                  Tell me about any topic and I'll create a personalized lesson for you
-                </p>
-              </div>
-              <div className="animate-in slide-in-from-bottom-6 duration-700 delay-400">
+            <form onSubmit={handleModalSubmit} className="flex items-center justify-center">
+              <div className="relative">
                 <Input
                   value={modalInput}
                   onChange={(e) => setModalInput(e.target.value)}
-                  placeholder="e.g., React hooks, Python basics, API design..."
-                  className="w-[28rem] h-16 text-lg bg-white/95 backdrop-blur-md border-0 rounded-2xl px-8 placeholder:text-gray-500 focus:bg-white focus:ring-4 focus:ring-orange-200/50 transition-all duration-300 shadow-2xl"
+                  placeholder="What do you want to learn today?"
+                  className="w-[32rem] h-16 text-lg bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl px-8 placeholder:text-white/70 text-white focus:bg-white/30 focus:ring-2 focus:ring-white/50 focus:border-white/50 transition-all duration-300 shadow-2xl"
                   autoFocus
                 />
               </div>

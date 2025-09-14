@@ -10,8 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Home,
+  Settings as SettingsIcon,
+  Plus,
+  LogOut,
+  MessageCircle,
+  User,
+  Shield,
+  Link as LinkIcon,
+  Github,
+  GitBranch,
+  BarChart3
+} from 'lucide-react';
 
 interface User {
   _id: string;
@@ -50,17 +63,18 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  
+  const [activeTab, setActiveTab] = useState('Settings');
+
   // Integration states
   const [linearApiKey, setLinearApiKey] = useState('');
   const [slackApiKey, setSlackApiKey] = useState('');
   const [slackChannelId, setSlackChannelId] = useState('');
-  
+
   // Repository states
   const [newRepoName, setNewRepoName] = useState('');
   const [newRepoUrl, setNewRepoUrl] = useState('');
   const [isAddRepoDialogOpen, setIsAddRepoDialogOpen] = useState(false);
-  
+
   const router = useRouter();
 
   useEffect(() => {
@@ -466,55 +480,130 @@ export default function Settings() {
 
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <Link href="/dashboard" className="mr-4 text-gray-600 hover:text-gray-900">
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          </div>
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-              <span className="text-white text-sm font-bold">
-                {userProfile.user.username?.charAt(0).toUpperCase() || 'U'}
-              </span>
+    <div className="min-h-screen bg-orange-50 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white/80 backdrop-blur-lg shadow-xl border-r border-orange-100 fixed h-full overflow-y-auto">
+        <div className="p-6">
+          <Link href="/dashboard" className="flex items-center group">
+            <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="text-gray-700 font-medium">{userProfile.user.username}</span>
+            <span className="font-bold text-xl text-orange-600">CodeByte</span>
+          </Link>
+        </div>
+
+        <nav className="mt-8">
+          <div className="px-6 py-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-start rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
+              asChild
+            >
+              <Link href="/dashboard">
+                <Home className="mr-3 h-4 w-4" />
+                Home
+              </Link>
+            </Button>
+          </div>
+
+          <div className="px-6 py-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start rounded-xl hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
+              asChild
+            >
+              <Link href="/chat">
+                <MessageCircle className="mr-3 h-4 w-4" />
+                Chat
+              </Link>
+            </Button>
+          </div>
+
+          <div className="px-6 py-1">
+            <Button
+              variant={activeTab === 'Settings' ? 'secondary' : 'ghost'}
+              className={`w-full justify-start rounded-xl transition-all duration-300 ${
+                activeTab === 'Settings'
+                  ? 'bg-orange-100 text-orange-700 shadow-lg'
+                  : 'hover:bg-orange-50 hover:text-orange-600'
+              }`}
+              onClick={() => setActiveTab('Settings')}
+            >
+              <SettingsIcon className="mr-3 h-4 w-4" />
+              Settings
+            </Button>
+          </div>
+        </nav>
+
+        <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t border-orange-100 bg-white/80 backdrop-blur-lg">
+          <div className="flex items-center">
+            <Avatar className="mr-3">
+              <AvatarFallback className="bg-orange-500 text-white shadow-lg">
+                {userProfile.user.username?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate text-gray-900">{userProfile.user.username}</p>
+              <p className="text-xs text-gray-600 truncate">{userProfile.user.email}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              title="Logout"
+              className="hover:bg-orange-50 hover:text-orange-600 transition-colors rounded-lg"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-6xl mx-auto p-8 space-y-8">
-        {message && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-            {message}
+      {/* Main Content */}
+      <main className="flex-1 p-8 ml-64">
+        <div className="flex items-center justify-between mb-12">
+          <div>
+            <h1 className="text-4xl font-bold text-orange-600">Settings</h1>
+            <p className="text-gray-600 mt-2">Manage your account and preferences</p>
           </div>
-        )}
+        </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
+        <div className="space-y-8">
+          {message && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+              {message}
+            </div>
+          )}
 
-        {/* Profile Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your personal information and account settings</CardDescription>
-          </CardHeader>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          {/* Profile Information */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <User className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-900">Profile Information</CardTitle>
+                  <CardDescription>Update your personal information and account settings</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
           <CardContent>
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -542,19 +631,26 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                 {loading ? 'Updating...' : 'Update Profile'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Change Password */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>Update your account password</CardDescription>
-          </CardHeader>
+          {/* Change Password */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-900">Change Password</CardTitle>
+                  <CardDescription>Update your account password</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
           <CardContent>
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
@@ -594,24 +690,32 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <Button type="submit" disabled={loading} variant="outline">
+              <Button type="submit" disabled={loading} className="border-orange-200 text-orange-600 hover:bg-orange-50 rounded-xl transition-all duration-300">
                 {loading ? 'Changing...' : 'Change Password'}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Repository Management */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Repository Management</CardTitle>
-                <CardDescription>Manage your connected repositories</CardDescription>
-              </div>
+          {/* Repository Management */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <Github className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-gray-900">Repository Management</CardTitle>
+                    <CardDescription>Manage your connected repositories</CardDescription>
+                  </div>
+                </div>
               <Dialog open={isAddRepoDialogOpen} onOpenChange={setIsAddRepoDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>Add Repository</Button>
+                  <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Repository
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -699,15 +803,22 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Integrations */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Integrations</CardTitle>
-            <CardDescription>Connect and manage your third-party integrations</CardDescription>
-          </CardHeader>
+          {/* Integrations */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                  <LinkIcon className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-900">Integrations</CardTitle>
+                  <CardDescription>Connect and manage your third-party integrations</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
           <CardContent className="space-y-6">
             {/* Linear Integration */}
-            <div className="p-4 border rounded-lg">
+            <div className="p-6 border border-gray-200 rounded-xl bg-gray-50/50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium">Linear</h3>
@@ -744,7 +855,7 @@ export default function Settings() {
             </div>
 
             {/* Slack Integration */}
-            <div className="p-4 border rounded-lg">
+            <div className="p-6 border border-gray-200 rounded-xl bg-gray-50/50">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium">Slack</h3>
@@ -794,52 +905,68 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Account Statistics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Statistics</CardTitle>
-            <CardDescription>Overview of your account activity</CardDescription>
-          </CardHeader>
+          {/* Account Statistics */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-gray-900">Account Statistics</CardTitle>
+                  <CardDescription>Overview of your account activity</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-500">{userProfile.repositories.length}</div>
-                <div className="text-sm text-gray-600">Repositories</div>
+              <div className="text-center p-6 bg-orange-50 rounded-xl border border-orange-100">
+                <div className="text-3xl font-bold text-orange-500">{userProfile.repositories.length}</div>
+                <div className="text-sm text-gray-600 mt-1">Repositories</div>
               </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-500">
+              <div className="text-center p-6 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-3xl font-bold text-blue-500">
                   {userProfile.repositories.filter(r => r.is_processed).length}
                 </div>
-                <div className="text-sm text-gray-600">Processed</div>
+                <div className="text-sm text-gray-600 mt-1">Processed</div>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-500">
+              <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
+                <div className="text-3xl font-bold text-green-500">
                   {Object.values(userProfile.integrations).filter(Boolean).length}
                 </div>
-                <div className="text-sm text-gray-600">Integrations</div>
+                <div className="text-sm text-gray-600 mt-1">Integrations</div>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-500">0</div>
-                <div className="text-sm text-gray-600">Lessons</div>
+              <div className="text-center p-6 bg-purple-50 rounded-xl border border-purple-100">
+                <div className="text-3xl font-bold text-purple-500">0</div>
+                <div className="text-sm text-gray-600 mt-1">Lessons</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Danger Zone */}
-        <Card className="border-red-200">
-          <CardHeader>
-            <CardTitle className="text-red-900">Danger Zone</CardTitle>
-            <CardDescription>
-              Once you logout, you&apos;ll need to sign in again to access your account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleLogout} variant="destructive">
-              Logout
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Danger Zone */}
+          <Card className="bg-red-50/80 backdrop-blur-sm border border-red-200 shadow-xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <LogOut className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl text-red-900">Danger Zone</CardTitle>
+                  <CardDescription>
+                    Once you logout, you&apos;ll need to sign in again to access your account.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );
