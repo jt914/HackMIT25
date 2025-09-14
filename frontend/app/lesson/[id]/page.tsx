@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowRight, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getCurrentUserEmail, isAuthenticated } from "@/lib/backend-auth";
 import { getApiEndpoint } from "@/lib/config";
 
@@ -50,7 +51,35 @@ interface InfoSlide {
   image_url: string | null;
 }
 
-type Slide = InfoSlide | MCQQuestion | DragDropQuestion;
+interface VideoSlide {
+  type: 'video';
+  id: string;
+  title: string;
+  description: string;
+  video_url: string;
+  duration_seconds: number | null;
+}
+
+interface InteractiveInvestigationSlide {
+  type: 'interactive_investigation';
+  id: string;
+  title: string;
+  problem_description: string;
+  problem_context: string;
+  solution: string;
+  hints: string[];
+  chat_history: Array<{
+    role: string;
+    message: string;
+    timestamp: string;
+    is_correct?: boolean;
+    hint_provided?: boolean;
+  }>;
+  current_state: string;
+  hints_given: number;
+}
+
+type Slide = InfoSlide | VideoSlide | MCQQuestion | DragDropQuestion | InteractiveInvestigationSlide;
 
 interface Lesson {
   id: string;
@@ -81,10 +110,26 @@ export default function LessonPage() {
   const [dragDropSubmitted, setDragDropSubmitted] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+  
+  // Interactive investigation state
+  const [investigationMessage, setInvestigationMessage] = useState('');
+  const [investigationLoading, setInvestigationLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const fetchCalled = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchCalled.current) return;
+    fetchCalled.current = true;
+
     fetchUser();
     fetchLesson();
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchCalled.current = false;
+    };
   }, [params.id]);
 
   const fetchUser = async () => {
@@ -237,6 +282,80 @@ export default function LessonPage() {
     });
   };
 
+  const handleInvestigationMessage = async (slide: InteractiveInvestigationSlide, message: string) => {
+    if (!message.trim() || investigationLoading || !lesson) return;
+    
+    setInvestigationLoading(true);
+    
+    try {
+      const response = await fetch(getApiEndpoint('interactive-slide-message'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user?.email,
+          lesson_id: lesson.id,
+          slide_id: slide.id,
+          message: message
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.updated_slide) {
+          // Update the slide in the lesson
+          const updatedSlides = [...lesson.slides];
+          const slideIndex = updatedSlides.findIndex(s => s.id === slide.id);
+          if (slideIndex !== -1) {
+            updatedSlides[slideIndex] = data.updated_slide;
+            setLesson(prev => prev ? { ...prev, slides: updatedSlides } : null);
+          }
+          
+          
+          // Mark as complete if investigation is finished
+          if (data.investigation_completed) {
+            markSlideComplete(slide.id);
+          }
+        }
+      } else {
+        console.error('Failed to send investigation message');
+      }
+    } catch (error) {
+      console.error('Error sending investigation message:', error);
+    } finally {
+      setInvestigationLoading(false);
+      setInvestigationMessage('');
+    }
+  };
+
+  const deleteLesson = async () => {
+    if (!lesson) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(getApiEndpoint(`lessons/${lesson.id}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lesson');
+      }
+
+      // Redirect to dashboard after successful deletion
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Failed to delete lesson:', err);
+      alert('Failed to delete lesson. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -292,6 +411,56 @@ export default function LessonPage() {
                     alt={slide.title} 
                     className="max-w-full h-auto rounded-lg shadow-lg"
                   />
+                </div>
+              )}
+
+              <div className="pt-4">
+                <Button 
+                  onClick={() => markSlideComplete(slide.id)}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={completedSlides.has(slide.id)}
+                >
+                  {completedSlides.has(slide.id) ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Completed
+                    </>
+                  ) : (
+                    'Mark as Complete'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 'video':
+        return (
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-2xl">{slide.title}</CardTitle>
+              {slide.description && (
+                <p className="text-gray-600 mt-2">{slide.description}</p>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <div className="w-full max-w-3xl">
+                  <video 
+                    controls 
+                    className="w-full h-auto rounded-lg shadow-lg"
+                    poster="/api/placeholder/800/450"
+                  >
+                    <source src={slide.video_url} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              </div>
+              
+              {slide.duration_seconds && (
+                <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                  <Clock className="w-4 h-4" />
+                  <span>Duration: {Math.ceil(slide.duration_seconds / 60)} minutes</span>
                 </div>
               )}
 
@@ -544,7 +713,7 @@ export default function LessonPage() {
                           const item = slide.items.find(i => i.id === itemId);
                           return (
                             <div key={itemId} className="flex justify-between">
-                              <span>"{item?.text}"</span>
+                              <span>&quot;{item?.text}&quot;</span>
                               <span className="font-medium">→ {correctCategory}</span>
                             </div>
                           );
@@ -553,6 +722,158 @@ export default function LessonPage() {
                     </div>
                   </CardContent>
                 </Card>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 'interactive_investigation':
+        return (
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl">🕵️ {slide.title}</CardTitle>
+                <div className="flex items-center space-x-2">
+                  {slide.hints_given > 0 && (
+                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                      {slide.hints_given} hint{slide.hints_given > 1 ? 's' : ''} given
+                    </Badge>
+                  )}
+                  {slide.current_state === 'solved' && (
+                    <Badge className="bg-green-100 text-green-700">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Solved!
+                    </Badge>
+                  )}
+                  {slide.current_state === 'given_up' && (
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                      Completed
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Problem Description */}
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <h4 className="font-semibold text-orange-800 mb-2">🔍 The Problem</h4>
+                <p className="text-orange-700 leading-relaxed">{slide.problem_description}</p>
+              </div>
+
+              {/* Context */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-800 mb-2">📋 Context</h4>
+                <p className="text-blue-700 leading-relaxed">{slide.problem_context}</p>
+              </div>
+
+              {/* Chat History */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-800">💬 Investigation Chat</h4>
+                <div className="max-h-96 overflow-y-auto space-y-3 p-4 bg-gray-50 rounded-lg border">
+                  {slide.chat_history.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <p>Start your investigation! Ask questions about the problem.</p>
+                      <p className="text-sm mt-1">Try: &quot;What error messages are we seeing?&quot; or &quot;Which components are involved?&quot;</p>
+                    </div>
+                  ) : (
+                    slide.chat_history.map((msg, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                            msg.role === 'user'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">{msg.message}</p>
+                          {msg.role === 'assistant' && (
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                              <span className="text-xs text-gray-400">
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </span>
+                              <div className="flex items-center space-x-1">
+                                {msg.hint_provided && (
+                                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 text-xs">
+                                    💡 Hint
+                                  </Badge>
+                                )}
+                                {msg.is_correct && (
+                                  <Badge className="bg-green-100 text-green-700 text-xs">
+                                    ✅ Correct!
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Input Form or Completion Message */}
+                {slide.current_state === 'investigating' ? (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleInvestigationMessage(slide, investigationMessage);
+                    }}
+                    className="flex space-x-2 mt-4"
+                  >
+                    <input
+                      type="text"
+                      value={investigationMessage}
+                      onChange={(e) => setInvestigationMessage(e.target.value)}
+                      placeholder="Ask a question or share your hypothesis..."
+                      className="flex-1 px-4 py-2 border border-orange-200 rounded-lg focus:outline-none focus:border-orange-500"
+                      disabled={investigationLoading}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={investigationLoading || !investigationMessage.trim()}
+                      className="bg-orange-500 hover:bg-orange-600"
+                    >
+                      {investigationLoading ? '...' : 'Send'}
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-gray-600 mb-4">
+                      {slide.current_state === 'solved' 
+                        ? '🎉 Great job solving this investigation!' 
+                        : 'Investigation completed. Thanks for working through this issue!'}
+                    </p>
+                    {slide.current_state === 'solved' && (
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 className="font-semibold text-green-800 mb-2">✅ Solution</h4>
+                        <p className="text-green-700 leading-relaxed">{slide.solution}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Completion Button */}
+              {slide.current_state !== 'investigating' && (
+                <div className="pt-4">
+                  <Button 
+                    onClick={() => markSlideComplete(slide.id)}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    disabled={completedSlides.has(slide.id)}
+                  >
+                    {completedSlides.has(slide.id) ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Completed
+                      </>
+                    ) : (
+                      'Mark as Complete'
+                    )}
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -578,10 +899,39 @@ export default function LessonPage() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-2xl font-bold text-orange-600">{lesson.title}</h1>
                 <p className="text-gray-600">{lesson.description}</p>
               </div>
+              <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300">
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Lesson</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete &quot;{lesson.title}&quot;? This action cannot be undone.
+                      All progress data for this lesson will be permanently removed.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={deleteLesson}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-0 rounded-full px-3 py-1">

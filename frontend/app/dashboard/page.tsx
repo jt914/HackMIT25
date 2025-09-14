@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 // Lesson interface matching the API response
@@ -18,6 +18,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
 import { getApiEndpoint } from "@/lib/config";
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Home,
   Settings,
@@ -27,7 +34,8 @@ import {
   MessageCircle,
   Clock,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Trash2
 } from 'lucide-react';
 
 interface User {
@@ -43,10 +51,22 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('Home');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInput, setModalInput] = useState('');
+  const [deletingLesson, setDeletingLesson] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const router = useRouter();
+  const fetchUserCalled = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchUserCalled.current) return;
+    fetchUserCalled.current = true;
+
     fetchUser();
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchUserCalled.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -117,6 +137,31 @@ export default function Dashboard() {
       
       // Redirect to chat page with generating state
       router.push(`/chat?generating=true&query=${encodeURIComponent(modalInput.trim())}&email=${encodeURIComponent(user.email)}`);
+    }
+  };
+
+  const deleteLesson = async (lessonId: string) => {
+    setDeletingLesson(lessonId);
+    try {
+      const response = await fetch(getApiEndpoint(`lessons/${lessonId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete lesson');
+      }
+
+      // Remove the lesson from the local state
+      setLessons(prev => prev.filter(lesson => lesson.id !== lessonId));
+    } catch (err) {
+      console.error('Failed to delete lesson:', err);
+      alert('Failed to delete lesson. Please try again.');
+    } finally {
+      setDeletingLesson(null);
+      setShowDeleteDialog(null);
     }
   };
 
@@ -231,18 +276,36 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {lessons.map((lesson) => (
-              <Link key={lesson.id} href={`/lesson/${lesson.id}`}>
-                <Card className="group hover:shadow-xl hover:shadow-orange-100/50 transition-all duration-500 cursor-pointer border-0 bg-white/80 backdrop-blur-sm hover:-translate-y-2">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{lesson.title}</CardTitle>
-                      <Button variant="ghost" size="sm" className="h-auto p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-50">
-                        <MoreHorizontal className="h-4 w-4 text-gray-400" />
-                      </Button>
-                    </div>
-                  </CardHeader>
+              <Card key={lesson.id} className="group hover:shadow-xl hover:shadow-orange-100/50 transition-all duration-500 border-0 bg-white/80 backdrop-blur-sm hover:-translate-y-2">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <Link href={`/lesson/${lesson.id}`} className="flex-1">
+                      <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors cursor-pointer">{lesson.title}</CardTitle>
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-auto p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-50">
+                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setShowDeleteDialog(lesson.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Lesson
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="space-y-6">
+                <Link href={`/lesson/${lesson.id}`}>
+                  <CardContent className="space-y-6 cursor-pointer">
                     <div>
                       <p className="text-gray-600 leading-relaxed">
                         {lesson.description}
@@ -264,8 +327,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              </Link>
+                </Link>
+              </Card>
             ))}
           </div>
         )}
@@ -308,6 +371,33 @@ export default function Dashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <Dialog open={!!showDeleteDialog} onOpenChange={() => setShowDeleteDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Lesson</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this lesson? This action cannot be undone.
+                All progress data for this lesson will be permanently removed.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDeleteDialog(null)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => showDeleteDialog && deleteLesson(showDeleteDialog)}
+                disabled={!!deletingLesson}
+              >
+                {deletingLesson === showDeleteDialog ? 'Deleting...' : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -22,6 +22,15 @@ from app.models import (
     RemoveRepositoryRequest,
     GetUserProfileResponse,
     UserRepository,
+    InteractiveSlideMessageRequest,
+    InteractiveSlideMessageResponse,
+    # Connection State Management Models
+    DataSourceConnectionState,
+    ConnectionStateRequest,
+    ConnectionStateResponse,
+    GetConnectionStatesResponse,
+    TestConnectionRequest,
+    TestConnectionResponse,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import create_jwt_token
@@ -30,6 +39,7 @@ from app.database_builder.daytona_chunk_runner import DaytonaChunkRunner
 from app.agent.agent import Agent
 import json
 import app.constants as constants
+from datetime import datetime
 
 app = FastAPI(
     title="CodeByte API",
@@ -69,6 +79,9 @@ async def create_account(account_data: AccountDetails):
         if not mongo_client.create_account(account_data):
             raise HTTPException(status_code=400, detail="Failed to create account")
 
+        # Initialize default connection states for new user
+        mongo_client.initialize_default_connection_states(account_data.email)
+
         token_data = create_jwt_token(account_data.email)
         return AuthResponse(**token_data)
 
@@ -95,9 +108,43 @@ async def login_account(login_data: LoginDetails):
 @app.post("/process-repository", response_model=RepositoryResponse)
 async def process_repository(request: RepositoryRequest):
     try:
+        # Add sync start event for GitHub repository processing
+        event_data = {
+            "event_type": "sync",
+            "status": "in_progress",
+            "message": f"Starting repository processing for {request.github_url}"
+        }
+        mongo_client.add_connection_event(request.email, "github", event_data)
+        
         runner = DaytonaChunkRunner(constants.DAYTONA_SNAPSHOT_NAME)
-
         result = await runner.process_repository(str(request.github_url), request.email)
+
+        # Update sync info and add completion event
+        if result["success"]:
+            sync_data = {
+                "last_sync_status": "success",
+                "data_count": result.get("chunk_count", 0)
+            }
+            mongo_client.update_connection_sync_info(request.email, "github", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "success",
+                "message": f"Successfully processed repository {request.github_url}"
+            }
+            mongo_client.add_connection_event(request.email, "github", event_data)
+        else:
+            sync_data = {
+                "last_sync_status": "failure"
+            }
+            mongo_client.update_connection_sync_info(request.email, "github", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "failure",
+                "message": f"Repository processing failed: {result.get('error', 'Unknown error')}"
+            }
+            mongo_client.add_connection_event(request.email, "github", event_data)
 
         return RepositoryResponse(
             success=result["success"],
@@ -108,6 +155,13 @@ async def process_repository(request: RepositoryRequest):
         )
 
     except Exception as e:
+        # Add error event
+        event_data = {
+            "event_type": "sync",
+            "status": "failure",
+            "message": f"Repository processing error: {str(e)}"
+        }
+        mongo_client.add_connection_event(request.email, "github", event_data)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -123,7 +177,7 @@ async def generate_lesson(request: GenerateLessonRequest):
             raise HTTPException(status_code=404, detail="User not found")
 
         # Initialize lesson generator service
-        from services.lesson_service import LessonGeneratorService
+        from app.services.lesson_service import LessonGeneratorService
         lesson_service = LessonGeneratorService(username=username)
 
         # Generate lesson
@@ -149,8 +203,44 @@ async def generate_lesson(request: GenerateLessonRequest):
 @app.post("/process-linear-tickets", response_model=RepositoryResponse)
 async def process_linear_tickets(request: LinearTicketRequest):
     try:
+        # Add sync start event
+        event_data = {
+            "event_type": "sync",
+            "status": "in_progress",
+            "message": "Starting Linear tickets sync"
+        }
+        mongo_client.add_connection_event(request.email, "linear", event_data)
+        
         runner = LinearTicketIngester(email=request.email)
         result = await runner.ingest_tickets()
+        
+        # Update sync info and add completion event
+        if result["success"]:
+            sync_data = {
+                "last_sync_status": "success",
+                "data_count": result.get("ticket_count", 0)
+            }
+            mongo_client.update_connection_sync_info(request.email, "linear", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "success",
+                "message": f"Successfully synced {result.get('ticket_count', 0)} Linear tickets"
+            }
+            mongo_client.add_connection_event(request.email, "linear", event_data)
+        else:
+            sync_data = {
+                "last_sync_status": "failure"
+            }
+            mongo_client.update_connection_sync_info(request.email, "linear", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "failure",
+                "message": f"Linear sync failed: {result.get('error', 'Unknown error')}"
+            }
+            mongo_client.add_connection_event(request.email, "linear", event_data)
+        
         return RepositoryResponse(
             success=result["success"],
             repository=request.email,
@@ -159,6 +249,13 @@ async def process_linear_tickets(request: LinearTicketRequest):
             error=result.get("error"),
         )
     except Exception as e:
+        # Add error event
+        event_data = {
+            "event_type": "sync",
+            "status": "failure",
+            "message": f"Linear sync error: {str(e)}"
+        }
+        mongo_client.add_connection_event(request.email, "linear", event_data)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -167,6 +264,26 @@ async def set_linear_api_key(request: LinearTicketApiKeyRequest):
     try:
         mongo_client.set_linear_api_key(email=request.email, api_key=request.api_key)
         mongo_client.update_user_integrations(email=request.email, integration="linear", is_enabled=True)
+        
+        # Update connection state
+        connection_data = {
+            "user_email": request.email,
+            "source_type": "linear",
+            "source_name": "Linear Issues",
+            "credentials_set": True,
+            "is_connected": True,
+            "connection_status": "connected"
+        }
+        mongo_client.create_or_update_connection_state(connection_data)
+        
+        # Add connection event
+        event_data = {
+            "event_type": "connect",
+            "status": "success",
+            "message": "Linear API key configured successfully"
+        }
+        mongo_client.add_connection_event(request.email, "linear", event_data)
+        
         return RepositoryResponse(
             success=True,
             repository=request.email,
@@ -186,6 +303,26 @@ async def set_slack_api_key(request: SlackApiKeyRequest):
     try:
         mongo_client.set_slack_api_key(email=request.email, api_key=request.api_key)
         mongo_client.update_user_integrations(email=request.email, integration="slack", is_enabled=True)
+        
+        # Update connection state
+        connection_data = {
+            "user_email": request.email,
+            "source_type": "slack",
+            "source_name": "Slack Messages",
+            "credentials_set": True,
+            "is_connected": True,
+            "connection_status": "connected"
+        }
+        mongo_client.create_or_update_connection_state(connection_data)
+        
+        # Add connection event
+        event_data = {
+            "event_type": "connect",
+            "status": "success",
+            "message": "Slack API key configured successfully"
+        }
+        mongo_client.add_connection_event(request.email, "slack", event_data)
+        
         return RepositoryResponse(success=True, repository=request.email, sandbox_id=None, output=None, error=None)
     except HTTPException:
         raise
@@ -253,14 +390,41 @@ async def get_lesson_by_id(email: str, lesson_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/lessons/{lesson_id}")
+async def delete_lesson(lesson_id: str):
+    """
+    Delete a lesson by ID.
+    """
+    try:
+        success = mongo_client.delete_lesson(lesson_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        return {"message": "Lesson deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting lesson {lesson_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/process-slack-messages", response_model=RepositoryResponse)
 async def process_slack_messages(request: SlackIngestionRequest):
     """
     Process Slack messages from a specific channel.
     """
     try:
-        from database_builder.slack_ingestion import SlackMessageIngester
+        from app.database_builder.slack_ingestion import SlackMessageIngester
         from datetime import datetime
+        
+        # Add sync start event
+        event_data = {
+            "event_type": "sync",
+            "status": "in_progress",
+            "message": f"Starting Slack messages sync for channel {request.channel_id}"
+        }
+        mongo_client.add_connection_event(request.email, "slack", event_data)
         
         ingester = SlackMessageIngester(email=request.email)
         
@@ -279,6 +443,33 @@ async def process_slack_messages(request: SlackIngestionRequest):
             limit=request.limit
         )
         
+        # Update sync info and add completion event
+        if result["success"]:
+            sync_data = {
+                "last_sync_status": "success",
+                "data_count": result.get("message_count", 0)
+            }
+            mongo_client.update_connection_sync_info(request.email, "slack", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "success",
+                "message": f"Successfully synced {result.get('message_count', 0)} Slack messages from channel {request.channel_id}"
+            }
+            mongo_client.add_connection_event(request.email, "slack", event_data)
+        else:
+            sync_data = {
+                "last_sync_status": "failure"
+            }
+            mongo_client.update_connection_sync_info(request.email, "slack", sync_data)
+            
+            event_data = {
+                "event_type": "sync",
+                "status": "failure",
+                "message": f"Slack sync failed: {result.get('error', 'Unknown error')}"
+            }
+            mongo_client.add_connection_event(request.email, "slack", event_data)
+        
         return RepositoryResponse(
             success=result["success"],
             repository=f"slack-channel-{request.channel_id}",
@@ -287,6 +478,13 @@ async def process_slack_messages(request: SlackIngestionRequest):
             error=result.get("error"),
         )
     except Exception as e:
+        # Add error event
+        event_data = {
+            "event_type": "sync",
+            "status": "failure",
+            "message": f"Slack sync error: {str(e)}"
+        }
+        mongo_client.add_connection_event(request.email, "slack", event_data)
         print(f"Error processing Slack messages for {request.email}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -364,6 +562,252 @@ async def remove_repository(request: RemoveRepositoryRequest):
         raise
     except Exception as e:
         print(f"Error removing repository for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/interactive-slide-message", response_model=InteractiveSlideMessageResponse)
+async def interactive_slide_message(request: InteractiveSlideMessageRequest):
+    """
+    Handle a message sent to an interactive investigation slide within a lesson.
+    """
+    try:
+        # Get username for the service
+        username = mongo_client.get_username_by_email(request.email)
+        if not username:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get the lesson
+        lesson_data = mongo_client.get_lesson_by_id(request.email, request.lesson_id)
+        if not lesson_data:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+
+        # Find the interactive investigation slide
+        slide_data = None
+        slide_index = None
+        for i, slide in enumerate(lesson_data.get("slides", [])):
+            if slide.get("id") == request.slide_id and slide.get("type") == "interactive_investigation":
+                slide_data = slide
+                slide_index = i
+                break
+
+        if not slide_data:
+            raise HTTPException(status_code=404, detail="Interactive investigation slide not found")
+
+        # Initialize interactive lesson service for handling the chat
+        from app.services.interactive_lesson_service import InteractiveLessonService
+        lesson_service = InteractiveLessonService(username=username)
+
+        # Handle the message using the service
+        response, is_correct, hint_provided, investigation_completed = await lesson_service.handle_slide_message(
+            slide_data, request.message
+        )
+
+        # Update the slide data with new chat history and state
+        slide_data["chat_history"].append({
+            "role": "user",
+            "message": request.message,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+        slide_data["chat_history"].append({
+            "role": "assistant",
+            "message": response,
+            "timestamp": datetime.utcnow().isoformat(),
+            "is_correct": is_correct,
+            "hint_provided": hint_provided
+        })
+
+        if hint_provided:
+            slide_data["hints_given"] = slide_data.get("hints_given", 0) + 1
+
+        if investigation_completed:
+            slide_data["current_state"] = "solved" if is_correct else "given_up"
+
+
+        # Update the lesson in the database
+        lesson_data["slides"][slide_index] = slide_data
+        mongo_client.update_lesson_slide(request.email, request.lesson_id, slide_index, slide_data)
+
+        return InteractiveSlideMessageResponse(
+            success=True,
+            response=response,
+            is_correct=is_correct,
+            hint_provided=hint_provided,
+            investigation_completed=investigation_completed,
+            updated_slide=slide_data
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error handling interactive slide message for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Connection State Management Endpoints
+
+@app.get("/connection-states/{email}", response_model=GetConnectionStatesResponse)
+async def get_connection_states(email: str):
+    """
+    Get all connection states for a user with summary statistics.
+    """
+    try:
+        connection_states_data = mongo_client.get_connection_states(email)
+        summary = mongo_client.get_connection_state_summary(email)
+        
+        # Convert to DataSourceConnectionState objects
+        connection_states = [DataSourceConnectionState(**state) for state in connection_states_data]
+        
+        return GetConnectionStatesResponse(
+            success=True,
+            connection_states=connection_states,
+            summary=summary
+        )
+    except Exception as e:
+        print(f"Error getting connection states for {email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/connection-state", response_model=ConnectionStateResponse)
+async def update_connection_state(request: ConnectionStateRequest):
+    """
+    Update or create a connection state.
+    """
+    try:
+        connection_data = {
+            "user_email": request.email,
+            "source_type": request.source_type
+        }
+        
+        if request.source_name:
+            connection_data["source_name"] = request.source_name
+        if request.status:
+            connection_data["connection_status"] = request.status
+        if request.health_status:
+            connection_data["health_status"] = request.health_status
+        if request.config:
+            connection_data["config"] = request.config
+        
+        connection_id = mongo_client.create_or_update_connection_state(connection_data)
+        
+        # Add event if specified
+        if request.event_type:
+            event_data = {
+                "event_type": request.event_type,
+                "status": "success",
+                "message": request.event_message or f"{request.event_type.title()} event"
+            }
+            mongo_client.add_connection_event(request.email, request.source_type, event_data)
+        
+        # Get updated connection state
+        updated_states = mongo_client.get_connection_states(request.email)
+        updated_state = next((s for s in updated_states if s["id"] == connection_id), None)
+        
+        if updated_state:
+            connection_state = DataSourceConnectionState(**updated_state)
+            return ConnectionStateResponse(success=True, connection_state=connection_state)
+        else:
+            raise HTTPException(status_code=404, detail="Connection state not found after update")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating connection state for {request.email}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/test-connection", response_model=TestConnectionResponse)
+async def test_connection(request: TestConnectionRequest):
+    """
+    Test a connection to verify it's working properly.
+    """
+    try:
+        import time
+        start_time = time.time()
+        
+        connection_healthy = False
+        test_message = ""
+        
+        if request.source_type == "linear":
+            # Test Linear connection
+            try:
+                from app.api_clients.linear_client import LinearClient
+                api_key = mongo_client.get_linear_api_key(request.email)
+                if not api_key:
+                    test_message = "Linear API key not configured"
+                else:
+                    client = LinearClient(api_key)
+                    team_ids = await client.get_team_ids()
+                    if team_ids:
+                        connection_healthy = True
+                        test_message = f"Successfully connected to {len(team_ids)} team(s)"
+                    else:
+                        test_message = "No teams found - check API key permissions"
+            except Exception as e:
+                test_message = f"Linear connection failed: {str(e)}"
+                
+        elif request.source_type == "slack":
+            # Test Slack connection
+            try:
+                from app.api_clients.slack_client import SlackClient
+                api_key = mongo_client.get_slack_api_key(request.email)
+                if not api_key:
+                    test_message = "Slack API key not configured"
+                else:
+                    client = SlackClient(api_key)
+                    # Try to get bot info as a simple test
+                    auth_response = await client.test_auth()
+                    if auth_response.get("ok"):
+                        connection_healthy = True
+                        test_message = "Successfully connected to Slack"
+                    else:
+                        test_message = f"Slack auth failed: {auth_response.get('error', 'Unknown error')}"
+            except Exception as e:
+                test_message = f"Slack connection failed: {str(e)}"
+                
+        elif request.source_type == "github":
+            # Test GitHub connection (repository processing)
+            try:
+                repositories = mongo_client.get_user_repositories(request.email)
+                if repositories:
+                    connection_healthy = True
+                    processed_count = len([r for r in repositories if r.get("is_processed", False)])
+                    test_message = f"Found {len(repositories)} repositories, {processed_count} processed"
+                else:
+                    test_message = "No repositories configured"
+            except Exception as e:
+                test_message = f"GitHub connection test failed: {str(e)}"
+        else:
+            test_message = f"Connection test not implemented for {request.source_type}"
+        
+        response_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Update connection health
+        health_status = "healthy" if connection_healthy else "unhealthy"
+        health_data = {
+            "health_status": health_status,
+            "error": None if connection_healthy else test_message
+        }
+        mongo_client.update_connection_health(request.email, request.source_type, health_data)
+        
+        # Add test event
+        event_data = {
+            "event_type": "test",
+            "status": "success" if connection_healthy else "failure",
+            "message": test_message,
+            "metadata": {"response_time_ms": response_time_ms}
+        }
+        mongo_client.add_connection_event(request.email, request.source_type, event_data)
+        
+        return TestConnectionResponse(
+            success=True,
+            connection_healthy=connection_healthy,
+            test_message=test_message,
+            response_time_ms=response_time_ms
+        )
+        
+    except Exception as e:
+        print(f"Error testing connection for {request.email}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

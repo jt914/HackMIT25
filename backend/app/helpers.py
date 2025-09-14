@@ -1,6 +1,7 @@
 import asyncio
-from app.api_clients.mongo import mongo_client
-import app.constants as constants
+# from api_clients.mongo import mongo_client
+from api_clients.slack_client import SlackClient
+import constants as constants
 
 # mongo_client.update_user_integrations("josephtso914@gmail.com", "github", True)
 
@@ -12,9 +13,14 @@ import app.constants as constants
 # )
 # print(mongo_client.get_linear_api_key(email="josephtso914@gmail.com"))
 
-from app.agent.agent import Agent
-agent = Agent(username="josephtso914")
-print(asyncio.run(agent.query("Generate me a simple json formatted lesson about how user data gets stored in the database, and everthing I need to know about the database schema. Use tools to get context about my specific codebase.")))
+# from app.agent.agent import Agent
+# agent = Agent(username="josephtso914")
+# print(asyncio.run(agent.query("Generate me a simple json formatted lesson about how user data gets stored in the database, and everthing I need to know about the database schema. Use tools to get context about my specific codebase.")))
+
+slack_client = SlackClient(api_key=constants.SLACK_API_KEY)
+print(asyncio.run(slack_client.fetch_channel_messages(channel_id="C093X7X7DS9")))
+
+
 
 # for team_id in asyncio.run(linear_client.get_team_ids()):
 #     print(team_id)

@@ -336,5 +336,348 @@ class MongoClient:
             print(f"Error getting user profile for {email}: {e}")
             return None
 
+    def save_interactive_lesson_session(self, session_data: dict) -> str:
+        """
+        Save an interactive lesson session.
+        Returns the session ID.
+        """
+        try:
+            # Save to a separate collection for interactive lesson sessions
+            interactive_lessons_collection = self.db.interactive_lessons
+            result = interactive_lessons_collection.insert_one(session_data)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"Error saving interactive lesson session: {e}")
+            raise e
+
+    def get_interactive_lesson_session(self, session_id: str, user_email: str) -> dict:
+        """
+        Get an interactive lesson session by ID and user email.
+        Returns None if not found.
+        """
+        try:
+            interactive_lessons_collection = self.db.interactive_lessons
+            session = interactive_lessons_collection.find_one({
+                "id": session_id,
+                "user_email": user_email
+            })
+            return session
+        except Exception as e:
+            print(f"Error getting interactive lesson session {session_id}: {e}")
+            return None
+
+    def update_interactive_lesson_session(self, session_data: dict):
+        """
+        Update an interactive lesson session.
+        """
+        try:
+            interactive_lessons_collection = self.db.interactive_lessons
+            interactive_lessons_collection.update_one(
+                {"id": session_data["id"], "user_email": session_data["user_email"]},
+                {"$set": session_data}
+            )
+        except Exception as e:
+            print(f"Error updating interactive lesson session: {e}")
+            raise e
+
+    def get_user_interactive_lesson_sessions(self, email: str) -> list:
+        """
+        Get all interactive lesson sessions for a user.
+        Returns empty list if no sessions exist.
+        """
+        try:
+            interactive_lessons_collection = self.db.interactive_lessons
+            sessions = list(interactive_lessons_collection.find(
+                {"user_email": email}
+            ).sort("created_at", -1))
+            return sessions
+        except Exception as e:
+            print(f"Error getting user interactive lesson sessions for {email}: {e}")
+            return []
+
+    def update_lesson_slide(self, email: str, lesson_id: str, slide_index: int, slide_data: dict):
+        """
+        Update a specific slide within a lesson.
+        """
+        try:
+            self.users.update_one(
+                {"email": email, "lessons.id": lesson_id},
+                {"$set": {f"lessons.$.slides.{slide_index}": slide_data}}
+            )
+        except Exception as e:
+            print(f"Error updating lesson slide for {email}: {e}")
+            raise e
+
+    def delete_lesson(self, lesson_id: str) -> bool:
+        """
+        Delete a lesson by ID from all users.
+        Returns True if lesson was found and deleted.
+        """
+        try:
+            # Remove the lesson from all users who have it
+            result = self.users.update_many(
+                {"lessons.id": lesson_id},
+                {"$pull": {"lessons": {"id": lesson_id}}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error deleting lesson {lesson_id}: {e}")
+            return False
+
+    # Enhanced Connection State Management Methods
+    
+    def get_connection_states(self, email: str) -> list:
+        """
+        Get all connection states for a user.
+        Returns empty list if no states exist.
+        """
+        try:
+            connection_states_collection = self.db.connection_states
+            states = list(connection_states_collection.find(
+                {"user_email": email}
+            ).sort("updated_at", -1))
+            return states
+        except Exception as e:
+            print(f"Error getting connection states for {email}: {e}")
+            return []
+
+    def create_or_update_connection_state(self, connection_data: dict) -> str:
+        """
+        Create or update a connection state.
+        Returns the connection ID.
+        """
+        try:
+            from datetime import datetime
+            import uuid
+            
+            connection_states_collection = self.db.connection_states
+            
+            # Check if connection already exists
+            existing = connection_states_collection.find_one({
+                "user_email": connection_data["user_email"],
+                "source_type": connection_data["source_type"]
+            })
+            
+            if existing:
+                # Update existing connection
+                connection_data["updated_at"] = datetime.utcnow()
+                connection_states_collection.update_one(
+                    {"id": existing["id"]},
+                    {"$set": connection_data}
+                )
+                return existing["id"]
+            else:
+                # Create new connection
+                connection_id = str(uuid.uuid4())
+                connection_data["id"] = connection_id
+                connection_data["created_at"] = datetime.utcnow()
+                connection_data["updated_at"] = datetime.utcnow()
+                connection_states_collection.insert_one(connection_data)
+                return connection_id
+                
+        except Exception as e:
+            print(f"Error creating/updating connection state: {e}")
+            raise e
+
+    def add_connection_event(self, email: str, source_type: str, event_data: dict):
+        """
+        Add an event to a connection's history.
+        Keeps only the last 10 events per connection.
+        """
+        try:
+            from datetime import datetime
+            import uuid
+            
+            connection_states_collection = self.db.connection_states
+            
+            # Add event metadata
+            event_data["id"] = str(uuid.uuid4())
+            event_data["timestamp"] = datetime.utcnow()
+            
+            # Add event to connection and keep only last 10
+            connection_states_collection.update_one(
+                {
+                    "user_email": email,
+                    "source_type": source_type
+                },
+                {
+                    "$push": {
+                        "recent_events": {
+                            "$each": [event_data],
+                            "$slice": -10  # Keep only last 10 events
+                        }
+                    },
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            
+        except Exception as e:
+            print(f"Error adding connection event for {email}: {e}")
+            raise e
+
+    def update_connection_health(self, email: str, source_type: str, health_data: dict):
+        """
+        Update connection health status and error tracking.
+        """
+        try:
+            from datetime import datetime
+            
+            connection_states_collection = self.db.connection_states
+            
+            update_data = {
+                "health_status": health_data.get("health_status"),
+                "updated_at": datetime.utcnow(),
+                "last_tested_at": datetime.utcnow()
+            }
+            
+            # Update error tracking if provided
+            if "error" in health_data:
+                if health_data["error"]:
+                    # Increment error count and set last error
+                    connection_states_collection.update_one(
+                        {"user_email": email, "source_type": source_type},
+                        {
+                            "$set": {
+                                **update_data,
+                                "last_error": health_data["error"],
+                                "last_error_at": datetime.utcnow()
+                            },
+                            "$inc": {"error_count": 1}
+                        }
+                    )
+                else:
+                    # Reset error count on success
+                    update_data["error_count"] = 0
+                    connection_states_collection.update_one(
+                        {"user_email": email, "source_type": source_type},
+                        {"$set": update_data}
+                    )
+            else:
+                connection_states_collection.update_one(
+                    {"user_email": email, "source_type": source_type},
+                    {"$set": update_data}
+                )
+                
+        except Exception as e:
+            print(f"Error updating connection health for {email}: {e}")
+            raise e
+
+    def update_connection_sync_info(self, email: str, source_type: str, sync_data: dict):
+        """
+        Update connection sync information.
+        """
+        try:
+            from datetime import datetime
+            
+            connection_states_collection = self.db.connection_states
+            
+            update_data = {
+                "last_sync_at": sync_data.get("last_sync_at", datetime.utcnow()),
+                "last_sync_status": sync_data.get("last_sync_status"),
+                "data_count": sync_data.get("data_count", 0),
+                "updated_at": datetime.utcnow()
+            }
+            
+            # Remove None values
+            update_data = {k: v for k, v in update_data.items() if v is not None}
+            
+            connection_states_collection.update_one(
+                {"user_email": email, "source_type": source_type},
+                {"$set": update_data}
+            )
+            
+        except Exception as e:
+            print(f"Error updating connection sync info for {email}: {e}")
+            raise e
+
+    def get_connection_state_summary(self, email: str) -> dict:
+        """
+        Get a summary of all connection states for a user.
+        """
+        try:
+            states = self.get_connection_states(email)
+            
+            summary = {
+                "total_connections": len(states),
+                "connected_count": len([s for s in states if s.get("is_connected", False)]),
+                "healthy_count": len([s for s in states if s.get("health_status") == "healthy"]),
+                "error_count": len([s for s in states if s.get("health_status") == "unhealthy"]),
+                "last_sync_count": len([s for s in states if s.get("last_sync_at")]),
+                "sources_by_type": {}
+            }
+            
+            # Count by source type
+            for state in states:
+                source_type = state.get("source_type", "unknown")
+                if source_type not in summary["sources_by_type"]:
+                    summary["sources_by_type"][source_type] = {
+                        "total": 0,
+                        "connected": 0,
+                        "healthy": 0
+                    }
+                
+                summary["sources_by_type"][source_type]["total"] += 1
+                if state.get("is_connected", False):
+                    summary["sources_by_type"][source_type]["connected"] += 1
+                if state.get("health_status") == "healthy":
+                    summary["sources_by_type"][source_type]["healthy"] += 1
+            
+            return summary
+            
+        except Exception as e:
+            print(f"Error getting connection state summary for {email}: {e}")
+            return {}
+
+    def initialize_default_connection_states(self, email: str):
+        """
+        Initialize default connection states for a new user.
+        """
+        try:
+            default_sources = [
+                {
+                    "user_email": email,
+                    "source_type": "github",
+                    "source_name": "GitHub Repositories",
+                    "is_connected": False,
+                    "connection_status": "disconnected",
+                    "health_status": "unknown",
+                    "credentials_set": False,
+                    "data_count": 0,
+                    "error_count": 0,
+                    "recent_events": []
+                },
+                {
+                    "user_email": email,
+                    "source_type": "linear",
+                    "source_name": "Linear Issues",
+                    "is_connected": False,
+                    "connection_status": "disconnected", 
+                    "health_status": "unknown",
+                    "credentials_set": False,
+                    "data_count": 0,
+                    "error_count": 0,
+                    "recent_events": []
+                },
+                {
+                    "user_email": email,
+                    "source_type": "slack",
+                    "source_name": "Slack Messages",
+                    "is_connected": False,
+                    "connection_status": "disconnected",
+                    "health_status": "unknown", 
+                    "credentials_set": False,
+                    "data_count": 0,
+                    "error_count": 0,
+                    "recent_events": []
+                }
+            ]
+            
+            for source_data in default_sources:
+                self.create_or_update_connection_state(source_data)
+                
+        except Exception as e:
+            print(f"Error initializing default connection states for {email}: {e}")
+            raise e
+
 
 mongo_client = MongoClient()

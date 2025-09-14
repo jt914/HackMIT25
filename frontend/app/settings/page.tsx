@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
@@ -25,6 +25,7 @@ import {
   GitBranch,
   BarChart3
 } from 'lucide-react';
+import ConnectionDashboard from "@/components/ui/ConnectionDashboard";
 
 interface User {
   _id: string;
@@ -76,9 +77,19 @@ export default function Settings() {
   const [isAddRepoDialogOpen, setIsAddRepoDialogOpen] = useState(false);
 
   const router = useRouter();
+  const fetchUserProfileCalled = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchUserProfileCalled.current) return;
+    fetchUserProfileCalled.current = true;
+
     fetchUserProfile();
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchUserProfileCalled.current = false;
+    };
   }, []);
 
   const fetchUserProfile = async () => {
@@ -902,6 +913,17 @@ export default function Settings() {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Connection Status Dashboard */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Source Connections</CardTitle>
+            <CardDescription>Monitor and manage your data source connections</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConnectionDashboard userEmail={userProfile.user.email} />
           </CardContent>
         </Card>
 

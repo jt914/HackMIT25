@@ -1,0 +1,27 @@
+{
+  "title": "Key Points About Python",
+  "audio": {
+    "narration": "Python is a powerful programming language with many advantages. First, it has simple and readable syntax that makes it easy to learn. Second, it has a vast ecosystem of libraries and frameworks. Third, it's versatile and can be used for web development, data science, automation, and more. Finally, it has strong community support with extensive documentation and resources.",
+    "language": "en"
+  },
+  "bullets": [
+    {
+      "text": "Simple and readable syntax"
+    },
+    {
+      "text": "Vast ecosystem of libraries"
+    },
+    {
+      "text": "Versatile for many use cases"
+    },
+    {
+      "text": "Strong community support"
+    }
+  ],
+  "timing": {
+    "bullet_appear_duration": 0.8,
+    "bullet_highlight_duration": 2.5,
+    "pause_between_bullets": 0.5,
+    "final_pause": 2.0
+  }
+}

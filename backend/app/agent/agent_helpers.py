@@ -46,14 +46,14 @@ def build_lesson_prompt(topic: str, user_context: Dict = None) -> str:
         """
 
     prompt = f"""
-    Create an interactive Duolingo-style lesson about our implementation of: {topic}
+    Create an interactive practical lesson about working with: {topic}
     
     {context_info}
     
-    CONTEXT: You're teaching a developer who already knows the basics of {topic}. 
-    Skip generic explanations and focus ENTIRELY on how we implemented {topic} in our codebase.
+    CONTEXT: You're teaching a developer who needs to know how to effectively work with {topic} in our codebase. 
+    Focus on practical skills, usage patterns, and real-world scenarios they'll encounter.
     
-    Your goal: Create an engaging, interactive lesson with bite-sized content slides and quizzes that can be clicked through like a slideshow.
+    Your goal: Create an engaging, interactive lesson with bite-sized content slides and quizzes that teach practical skills.
     
     CRITICAL OUTPUT FORMAT: You MUST respond with a valid JSON object in this exact structure:
     {{
@@ -173,10 +173,13 @@ def build_lesson_prompt(topic: str, user_context: Dict = None) -> str:
     - Focus on our specific implementation choices
     
     QUIZ GUIDELINES:
-    - Test knowledge of our specific implementation
+    - Test practical knowledge developers need for their daily work
+    - Focus on "how to" and "when to use" questions rather than "what is"
     - Use real file names, component names, and patterns from our code
-    - Avoid generic programming questions
-    - Explanations should reference our actual codebase
+    - Ask about decision-making scenarios and best practices
+    - Include troubleshooting and debugging scenarios
+    - Avoid trivia about ticket numbers, dates, or administrative details
+    - Explanations should reference our actual codebase and practical usage
     """
 
     return prompt

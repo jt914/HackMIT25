@@ -5,3 +5,5 @@ __pycache__/
 .env
 .python-version
 .DS_STORE
+video-gen-testing
+veo3

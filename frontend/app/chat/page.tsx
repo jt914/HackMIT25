@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
@@ -42,51 +42,10 @@ function ChatComponent() {
   const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const lessonGenerationStarted = useRef(false);
+  const fetchUserCalled = useRef(false);
 
-  useEffect(() => {
-    fetchUser();
-
-    // Check if there's an initial query from the modal
-    const initialQuery = searchParams.get('query');
-    const userEmail = searchParams.get('email');
-    const isGenerating = searchParams.get('generating') === 'true';
-    
-    if (initialQuery) {
-      const userMessage = {
-        id: '1',
-        content: initialQuery,
-        sender: 'user' as const,
-        timestamp: new Date()
-      };
-      
-      setMessages([userMessage]);
-      
-      if (isGenerating && userEmail) {
-        setIsGeneratingLesson(true);
-        // Start lesson generation immediately
-        generateLessonWithEmail(initialQuery, userEmail);
-      } else {
-        setMessages(prev => [...prev, {
-          id: '2',
-          content: `I'd be happy to help you learn about "${initialQuery}"! Let me create a personalized learning path for you. What specific aspects would you like to focus on?`,
-          sender: 'bot',
-          timestamp: new Date()
-        }]);
-      }
-    } else {
-      // Default welcome message
-      setMessages([
-        {
-          id: 'welcome',
-          content: "Hi! I'm your AI learning assistant. I can help you create personalized lessons, answer questions about programming, and guide you through your learning journey. What would you like to learn today?",
-          sender: 'bot',
-          timestamp: new Date()
-        }
-      ]);
-    }
-  }, [searchParams]);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       if (!isAuthenticated()) {
         router.push('/login');
@@ -111,12 +70,61 @@ function ChatComponent() {
       console.error('Error fetching user:', error);
       router.push('/login');
     }
-  };
+  }, [router]);
 
-  const generateLesson = async (query: string) => {
-    if (!user?.email) return;
-    return generateLessonWithEmail(query, user.email);
-  };
+  useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchUserCalled.current) return;
+    fetchUserCalled.current = true;
+
+    fetchUser();
+
+    // Check if there's an initial query from the modal
+    const initialQuery = searchParams.get('query');
+    const userEmail = searchParams.get('email');
+    const isGenerating = searchParams.get('generating') === 'true';
+    
+    if (initialQuery) {
+      const userMessage = {
+        id: '1',
+        content: initialQuery,
+        sender: 'user' as const,
+        timestamp: new Date()
+      };
+      
+      setMessages([userMessage]);
+      
+      if (isGenerating && userEmail && !lessonGenerationStarted.current) {
+        lessonGenerationStarted.current = true;
+        setIsGeneratingLesson(true);
+        // Start lesson generation immediately
+        generateLessonWithEmail(initialQuery, userEmail);
+      } else {
+        setMessages(prev => [...prev, {
+          id: '2',
+          content: `Agent is currently processing your request. Please wait while we create a personalized learning path for you.`,
+          sender: 'bot',
+          timestamp: new Date()
+        }]);
+      }
+    } else {
+      // Default welcome message
+      setMessages([
+        {
+          id: 'welcome',
+          content: "Hi! I'm your AI learning assistant. I can help you create personalized lessons, answer questions about programming, and guide you through your learning journey. What would you like to learn today?",
+          sender: 'bot',
+          timestamp: new Date()
+        }
+      ]);
+    }
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchUserCalled.current = false;
+    };
+  }, [searchParams, fetchUser]);
+
 
   const generateLessonWithEmail = async (query: string, email: string) => {
     try {
@@ -177,6 +185,7 @@ function ChatComponent() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsGeneratingLesson(false);
+      lessonGenerationStarted.current = false;
     }
   };
 
@@ -204,17 +213,56 @@ function ChatComponent() {
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual AI integration)
-    setTimeout(() => {
-      const botMessage: Message = {
+    // Make actual API call to the chat endpoint
+    try {
+      const email = getCurrentUserEmail();
+      if (!email) {
+        throw new Error('User email not found');
+      }
+
+      const response = await fetch(getApiEndpoint('chat'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: inputMessage,
+          email: email
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.response) {
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: data.response,
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        // Fallback error message
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: "I'm sorry, I'm having trouble processing your request right now. Please try again.",
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: `That's a great question about "${inputMessage}"! Based on your interest, I can help you create a structured learning path. Would you like me to generate a lesson plan, or do you have specific topics you'd like to explore?`,
+        content: "I'm sorry, there was an error connecting to the server. Please try again.",
         sender: 'bot',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   if (!user) {

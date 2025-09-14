@@ -127,6 +127,14 @@ class SlackClient:
 
         return "\n".join(content_lines), metadata
 
+    async def test_auth(self) -> Dict[str, Any]:
+        """Test the authentication by calling auth.test endpoint."""
+        try:
+            data = await self._get("auth.test", {})
+            return data
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
 
 # No default singleton since Slack requires a per-user API key on construction
 
