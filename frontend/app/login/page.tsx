@@ -40,7 +40,7 @@ export default function Login() {
       } else {
         setError(data.detail || 'Login failed');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 

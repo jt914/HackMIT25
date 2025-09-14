@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _password, ...userWithoutPassword } = user;
 
       return NextResponse.json({ user: userWithoutPassword });
     }

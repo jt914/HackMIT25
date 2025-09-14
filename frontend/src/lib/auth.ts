@@ -29,7 +29,7 @@ export const verifyToken = (token: string): { userId: string } | null => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     return decoded;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };
@@ -38,7 +38,7 @@ export const getUserFromToken = (token: string): { userId: string } | null => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     return decoded;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };

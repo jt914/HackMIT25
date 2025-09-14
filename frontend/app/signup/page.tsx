@@ -23,15 +23,16 @@ export default function Signup() {
     setLoading(true);
     setError('');
 
-    // Validate username
-    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
-    if (!usernameRegex.test(name)) {
-      setError('Username can only contain letters, numbers, underscores, and hyphens');
+    // Normalize and validate username
+    const normalizedName = name.toLowerCase();
+    const usernameRegex = /^[a-z0-9-]+$/;
+    if (!usernameRegex.test(normalizedName)) {
+      setError('Username can only contain lowercase letters, numbers, and hyphens');
       setLoading(false);
       return;
     }
 
-    if (name.length < 3) {
+    if (normalizedName.length < 3) {
       setError('Username must be at least 3 characters long');
       setLoading(false);
       return;
@@ -41,7 +42,7 @@ export default function Signup() {
       const response = await fetch(getApiEndpoint('create-account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: name, email, password }),
+        body: JSON.stringify({ username: normalizedName, email, password }),
       });
 
       const data = await response.json();
@@ -55,7 +56,7 @@ export default function Signup() {
       } else {
         setError(data.detail || 'Signup failed');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -95,7 +96,7 @@ export default function Signup() {
                 className="h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 transition-all duration-300"
                 required
               />
-              <p className="text-sm text-gray-500">Letters, numbers, underscores, and hyphens only</p>
+              <p className="text-sm text-gray-500">Lowercase letters, numbers, and hyphens only</p>
             </div>
 
             <div className="space-y-3">

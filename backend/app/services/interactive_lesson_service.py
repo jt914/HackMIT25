@@ -78,20 +78,24 @@ class InteractiveLessonService:
         prompt = f"""
         MISSION: Find an interesting past issue that would make a great investigative lesson.
         
-        MANDATORY SEARCH STEPS - YOU MUST DO ALL OF THESE:
+        ⚠️ CRITICAL TOOL LIMIT: You have a MAXIMUM of 8 total informational tool calls (search_codebase + search_linear_ticket + search_slack_messages). After 8 calls, you MUST proceed to problem generation. Plan strategically!
         
-        STEP 1: SEARCH LINEAR TICKETS (REQUIRED - MINIMUM 3 SEARCHES)
+        MANDATORY SEARCH STEPS - WORK WITHIN THE 8-CALL LIMIT:
+        
+        STEP 1: SEARCH LINEAR TICKETS (RECOMMENDED 3-4 SEARCHES)
         Search for interesting issues, bugs, or technical challenges:
         - Search 1: "{base_topic}" 
         - Search 2: "bug" OR "error" OR "issue" OR "problem"
         - Search 3: "fix" OR "solution" OR "resolved" OR "implemented"
+        - Search 4: Additional relevant terms if within limit
         
-        STEP 2: SEARCH CODEBASE (REQUIRED - MINIMUM 2 SEARCHES) 
+        STEP 2: SEARCH CODEBASE (RECOMMENDED 2-3 SEARCHES) 
         Look for related code that might be involved:
         - Search 1: "{base_topic}"
         - Search 2: Related technical terms from Linear tickets
+        - Search 3: Additional code patterns if within limit
         
-        STEP 3: SEARCH SLACK MESSAGES (REQUIRED - MINIMUM 2 SEARCHES)
+        STEP 3: SEARCH SLACK MESSAGES (RECOMMENDED 1-2 SEARCHES)
         Look for team discussions about issues:
         - Search 1: "{base_topic}"
         - Search 2: "bug" OR "issue" OR "problem" OR "help" OR "broken"
@@ -487,21 +491,21 @@ class InteractiveLessonService:
         
         {"PROVIDE A HINT: Give a subtle hint that guides them toward the solution. Don't reveal the answer directly." if should_provide_hint else "NO HINT: Respond helpfully but don't give away the solution yet."}
         
-        INVESTIGATION COACHING:
-        - Act like a helpful senior developer who wants them to learn through investigation
-        - If they ask basic questions (like "what error messages"), provide specific technical details to help them dig deeper
-        - Encourage them to use investigation tools by suggesting specific approaches
-        - Guide them toward evidence collection rather than jumping to conclusions
-        - Ask probing follow-up questions to deepen their understanding
-        - Acknowledge good investigative thinking and redirect if they're off track
-        - Reference the context and background information appropriately
-        - Don't accept simple guesses - push them to provide evidence and reasoning
+        CRITICAL RESPONSE FORMAT:
+        - MAXIMUM 2-3 sentences only
+        - Be direct and focused - answer their exact question
+        - If providing technical details, be specific but concise
+        - No lengthy explanations or coaching paragraphs
         
-        IMPORTANT: If they're asking investigative questions, provide concrete technical information (error logs, code snippets, system details) rather than just encouragement. Make them feel like they're actually investigating a real system.
+        INVESTIGATION APPROACH:
+        - Act like a helpful senior developer giving quick, focused guidance
+        - Provide specific technical details when asked (error logs, code snippets) in 1-2 sentences
+        - Ask one focused follow-up question if needed to guide investigation
+        - Acknowledge their thinking briefly and redirect if off track
         
-        TONE: Encouraging, collaborative, like a helpful teammate who values thorough investigation
+        TONE: Direct, helpful, concise - like a busy but supportive teammate
         
-        RESPOND WITH ONLY YOUR MESSAGE - NO FORMATTING OR LABELS
+        RESPOND WITH ONLY YOUR MESSAGE - NO FORMATTING OR LABELS - MAXIMUM 2-3 SENTENCES
         """
         
         try:

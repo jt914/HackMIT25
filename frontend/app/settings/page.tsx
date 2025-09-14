@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
@@ -22,10 +22,8 @@ import {
   Shield,
   Link as LinkIcon,
   Github,
-  GitBranch,
   BarChart3
 } from 'lucide-react';
-import ConnectionDashboard from "@/components/ui/ConnectionDashboard";
 
 interface User {
   _id: string;
@@ -79,20 +77,7 @@ export default function Settings() {
   const router = useRouter();
   const fetchUserProfileCalled = useRef(false);
 
-  useEffect(() => {
-    // Prevent double execution in React 19 Strict Mode
-    if (fetchUserProfileCalled.current) return;
-    fetchUserProfileCalled.current = true;
-
-    fetchUserProfile();
-
-    // Cleanup function to reset ref on unmount
-    return () => {
-      fetchUserProfileCalled.current = false;
-    };
-  }, []);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       if (!isAuthenticated()) {
         router.push('/login');
@@ -133,11 +118,24 @@ export default function Settings() {
         setName(userData.name);
         setEmail(userData.email);
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+    } catch (_error) {
+      console.error('Error fetching user profile:', _error);
       router.push('/login');
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchUserProfileCalled.current) return;
+    fetchUserProfileCalled.current = true;
+
+    fetchUserProfile();
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchUserProfileCalled.current = false;
+    };
+  }, [fetchUserProfile]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,15 +143,16 @@ export default function Settings() {
     setError('');
     setMessage('');
 
-    // Validate username
-    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
-    if (!usernameRegex.test(name)) {
-      setError('Username can only contain letters, numbers, underscores, and hyphens');
+    // Normalize and validate username
+    const normalizedName = name.toLowerCase();
+    const usernameRegex = /^[a-z0-9-]+$/;
+    if (!usernameRegex.test(normalizedName)) {
+      setError('Username can only contain lowercase letters, numbers, and hyphens');
       setLoading(false);
       return;
     }
 
-    if (name.length < 3) {
+    if (normalizedName.length < 3) {
       setError('Username must be at least 3 characters long');
       setLoading(false);
       return;
@@ -163,7 +162,7 @@ export default function Settings() {
       const response = await fetch('/api/user/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: name, email }),
+        body: JSON.stringify({ username: normalizedName, email }),
       });
 
       const data = await response.json();
@@ -179,7 +178,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to update profile');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -220,7 +219,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to change password');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -261,7 +260,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to save Linear API key');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -292,7 +291,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to process Linear tickets');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -333,7 +332,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to save Slack API key');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -374,7 +373,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to process Slack messages');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -413,7 +412,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to add repository');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -443,7 +442,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to remove repository');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -473,7 +472,7 @@ export default function Settings() {
       } else {
         setError(data.error || 'Failed to process repository');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('Network error. Please try again.');
     }
 
@@ -484,7 +483,7 @@ export default function Settings() {
     try {
       removeAuthToken();
       router.push('/');
-    } catch (error) {
+    } catch (_error) {
       console.error('Logout error:', error);
     }
   };
@@ -564,8 +563,8 @@ export default function Settings() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-gray-900">{userProfile.user.username}</p>
-              <p className="text-xs text-gray-600 truncate">{userProfile.user.email}</p>
+              <p className="text-sm font-medium truncate text-gray-900" title={userProfile.user.username}>{userProfile.user.username}</p>
+              <p className="text-xs text-gray-600 truncate" title={userProfile.user.email}>{userProfile.user.email}</p>
             </div>
             <Button
               variant="ghost"
@@ -620,15 +619,15 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Username</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="mt-1"
-                    placeholder="Enter your username (no spaces or special characters)"
-                  />
+                    <Input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="mt-1"
+                      placeholder="Enter your username"
+                    />
                 </div>
                 <div>
                   <Label htmlFor="email">Email Address</Label>
@@ -776,14 +775,14 @@ export default function Settings() {
               <div className="space-y-4">
                 {userProfile.repositories.map((repo) => (
                   <div key={repo.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{repo.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium break-words" title={repo.name}>{repo.name}</h3>
                         <Badge variant={repo.is_processed ? "default" : "secondary"}>
                           {repo.is_processed ? "Processed" : "Pending"}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{repo.url}</p>
+                        <p className="text-sm text-gray-600 mt-1 break-all" title={repo.url}>{repo.url}</p>
                       <p className="text-xs text-gray-500 mt-1">
                         Added {new Date(repo.added_at).toLocaleDateString()}
                       </p>
@@ -916,16 +915,6 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Connection Status Dashboard */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Source Connections</CardTitle>
-            <CardDescription>Monitor and manage your data source connections</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConnectionDashboard userEmail={userProfile.user.email} />
-          </CardContent>
-        </Card>
 
           {/* Account Statistics */}
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
@@ -948,19 +937,17 @@ export default function Settings() {
               </div>
               <div className="text-center p-6 bg-blue-50 rounded-xl border border-blue-100">
                 <div className="text-3xl font-bold text-blue-500">
-                  {userProfile.repositories.filter(r => r.is_processed).length}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">Processed</div>
-              </div>
-              <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
-                <div className="text-3xl font-bold text-green-500">
                   {Object.values(userProfile.integrations).filter(Boolean).length}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">Integrations</div>
               </div>
               <div className="text-center p-6 bg-purple-50 rounded-xl border border-purple-100">
                 <div className="text-3xl font-bold text-purple-500">0</div>
-                <div className="text-sm text-gray-600 mt-1">Lessons</div>
+                <div className="text-sm text-gray-600 mt-1">Lessons Completed</div>
+              </div>
+              <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
+                <div className="text-3xl font-bold text-green-500">0</div>
+                <div className="text-sm text-gray-600 mt-1">Hours Learned</div>
               </div>
             </div>
           </CardContent>

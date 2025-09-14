@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { ArrowLeft, ArrowRight, CheckCircle, Clock, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getCurrentUserEmail, isAuthenticated } from "@/lib/backend-auth";
 import { getApiEndpoint } from "@/lib/config";
+import confetti from 'canvas-confetti';
 
 // New types based on the API schema
 interface MCQOption {
@@ -99,6 +100,7 @@ export default function LessonPage() {
   const [completedSlides, setCompletedSlides] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
   
   // MCQ state
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -118,21 +120,7 @@ export default function LessonPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const fetchCalled = useRef(false);
 
-  useEffect(() => {
-    // Prevent double execution in React 19 Strict Mode
-    if (fetchCalled.current) return;
-    fetchCalled.current = true;
-
-    fetchUser();
-    fetchLesson();
-
-    // Cleanup function to reset ref on unmount
-    return () => {
-      fetchCalled.current = false;
-    };
-  }, [params.id]);
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       if (!isAuthenticated()) {
         router.push('/login');
@@ -155,9 +143,9 @@ export default function LessonPage() {
       console.error('Error fetching user:', error);
       router.push('/login');
     }
-  };
+  }, [router]);
 
-  const fetchLesson = async () => {
+  const fetchLesson = useCallback(async () => {
     try {
       if (!user?.email) return;
       
@@ -179,35 +167,173 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email, params.id]);
+
+  const loadProgress = useCallback(async () => {
+    if (!user?.email || !params.id) return;
+    
+    try {
+      const response = await fetch(getApiEndpoint(`lesson-progress/${user.email}/${params.id}`));
+      if (response.ok) {
+        const data = await response.json();
+        if (data.progress) {
+          setCompletedSlides(new Set(data.progress.completed_slides));
+          setCurrentSlideIndex(data.progress.current_slide_index);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading progress:', error);
+    }
+  }, [user?.email, params.id]);
+
+  useEffect(() => {
+    // Prevent double execution in React 19 Strict Mode
+    if (fetchCalled.current) return;
+    fetchCalled.current = true;
+
+    fetchUser();
+    fetchLesson();
+
+    // Cleanup function to reset ref on unmount
+    return () => {
+      fetchCalled.current = false;
+    };
+  }, [params.id, fetchUser, fetchLesson]);
 
   // Fetch lesson when user is available
   useEffect(() => {
     if (user?.email) {
       fetchLesson();
+      loadProgress();
     }
-  }, [user]);
+  }, [user, fetchLesson, loadProgress]);
+
+  const saveProgress = async (newCompletedSlides: Set<string>, newSlideIndex: number, forceComplete?: boolean) => {
+    if (!user?.email || !lesson) return;
+    
+    try {
+      const isCompleted = forceComplete || newCompletedSlides.size === lesson.slides.length;
+      
+      const response = await fetch(getApiEndpoint('lesson-progress/update'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          lesson_id: lesson.id,
+          completed_slides: Array.from(newCompletedSlides),
+          current_slide_index: newSlideIndex,
+          is_completed: isCompleted
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.lesson_completed) {
+          // Show confetti and completion message
+          triggerConfetti();
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving progress:', error);
+    }
+  };
+
+  const triggerConfetti = () => {
+    // Create multiple confetti bursts
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: NodeJS.Timeout = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      // since particles fall down, start a bit higher than random
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+      });
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+      });
+    }, 250);
+  };
+
+  // Handle video playback when slide changes
+  useEffect(() => {
+    if (lesson) {
+      const currentSlide = lesson.slides[currentSlideIndex];
+      
+      // Pause any playing videos when switching slides
+      const allVideos = document.querySelectorAll('video');
+      allVideos.forEach(video => {
+        if (!video.paused) {
+          video.pause();
+          video.currentTime = 0; // Reset to beginning
+        }
+      });
+      
+      // Autoplay video slides after a short delay to ensure DOM is ready
+      if (currentSlide.type === 'video') {
+        setTimeout(() => {
+          // Find the current video element by slide ID instead of using ref
+          const videoElement = document.querySelector(`video[data-slide-id="${currentSlide.id}"]`) as HTMLVideoElement;
+          if (videoElement) {
+            videoElement.currentTime = 0; // Start from beginning
+            videoElement.play().catch(error => {
+              // Autoplay might be blocked by browser, that's okay
+              console.log('Autoplay was prevented:', error);
+            });
+          }
+        }, 200); // Increased delay to ensure DOM update
+      }
+    }
+  }, [currentSlideIndex, lesson]);
 
   const markSlideComplete = (slideId: string) => {
-    setCompletedSlides(prev => new Set([...prev, slideId]));
+    const newCompletedSlides = new Set([...completedSlides, slideId]);
+    setCompletedSlides(newCompletedSlides);
+    saveProgress(newCompletedSlides, currentSlideIndex);
   };
 
   const nextSlide = () => {
     if (lesson && currentSlideIndex < lesson.slides.length - 1) {
       // Auto-mark current slide as complete when advancing (except for questions that need to be answered)
       const currentSlide = lesson.slides[currentSlideIndex];
+      let newCompletedSlides = completedSlides;
+      
       if (currentSlide.type === 'info' || currentSlide.type === 'video') {
-        markSlideComplete(currentSlide.id);
+        newCompletedSlides = new Set([...completedSlides, currentSlide.id]);
+        setCompletedSlides(newCompletedSlides);
       }
       
-      setCurrentSlideIndex(currentSlideIndex + 1);
+      const newSlideIndex = currentSlideIndex + 1;
+      setCurrentSlideIndex(newSlideIndex);
+      saveProgress(newCompletedSlides, newSlideIndex);
       resetSlideState();
     }
   };
 
   const previousSlide = () => {
     if (currentSlideIndex > 0) {
-      setCurrentSlideIndex(currentSlideIndex - 1);
+      const newSlideIndex = currentSlideIndex - 1;
+      setCurrentSlideIndex(newSlideIndex);
+      saveProgress(completedSlides, newSlideIndex);
       resetSlideState();
     }
   };
@@ -395,7 +521,7 @@ export default function LessonPage() {
         return (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <CardTitle className="text-2xl">{slide.title}</CardTitle>
+              <CardTitle className="text-2xl break-words hyphens-auto" title={slide.title}>{slide.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <p className="text-lg leading-relaxed">{slide.content}</p>
@@ -429,18 +555,21 @@ export default function LessonPage() {
         return (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <CardTitle className="text-2xl">{slide.title}</CardTitle>
+              <CardTitle className="text-2xl break-words hyphens-auto" title={slide.title}>{slide.title}</CardTitle>
               {slide.description && (
-                <p className="text-gray-600 mt-2">{slide.description}</p>
+                <p className="text-gray-600 mt-2 break-words hyphens-auto" title={slide.description}>{slide.description}</p>
               )}
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex justify-center">
                 <div className="w-full max-w-3xl">
                   <video 
+                    key={slide.id}
+                    data-slide-id={slide.id}
                     controls 
                     className="w-full h-auto rounded-lg shadow-lg"
                     poster="/api/placeholder/800/450"
+                    preload="metadata"
                   >
                     <source src={slide.video_url} type="video/mp4" />
                     Your browser does not support the video tag.
@@ -464,7 +593,7 @@ export default function LessonPage() {
         return (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <CardTitle className="text-2xl">{slide.question}</CardTitle>
+              <CardTitle className="text-2xl break-words hyphens-auto" title={slide.question}>{slide.question}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -493,7 +622,7 @@ export default function LessonPage() {
                             <div className="w-full h-full rounded-full bg-white scale-50"></div>
                           )}
                         </div>
-                        <span className="text-sm">{option.text}</span>
+                        <span className="text-sm break-words">{option.text}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -533,7 +662,7 @@ export default function LessonPage() {
         return (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <CardTitle className="text-2xl">{slide.question}</CardTitle>
+              <CardTitle className="text-2xl break-words hyphens-auto" title={slide.question}>{slide.question}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -559,7 +688,7 @@ export default function LessonPage() {
                           } ${!dragDropSubmitted ? 'hover:bg-orange-50' : ''}`}
                         >
                           <CardContent className="p-3">
-                            <span className="text-sm font-medium">{item.text}</span>
+                            <span className="text-sm font-medium break-words">{item.text}</span>
                           </CardContent>
                         </Card>
                       ))
@@ -620,7 +749,7 @@ export default function LessonPage() {
                                   >
                                     <CardContent className="p-2">
                                       <div className="flex justify-between items-center">
-                                        <span className="text-sm">{item.text}</span>
+                                        <span className="text-sm break-words">{item.text}</span>
                                         {!dragDropSubmitted && (
                                           <button className="text-gray-400 hover:text-red-500 ml-2">
                                             ×
@@ -708,7 +837,7 @@ export default function LessonPage() {
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">🕵️ {slide.title}</CardTitle>
+                <CardTitle className="text-2xl break-words hyphens-auto" title={slide.title}>🕵️ {slide.title}</CardTitle>
                 <div className="flex items-center space-x-2">
                   {slide.hints_given > 0 && (
                     <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
@@ -875,9 +1004,9 @@ export default function LessonPage() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-orange-600">{lesson.title}</h1>
-                <p className="text-gray-600">{lesson.description}</p>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-orange-600 break-words hyphens-auto" title={lesson.title}>{lesson.title}</h1>
+                <p className="text-gray-600 break-words hyphens-auto" title={lesson.description}>{lesson.description}</p>
               </div>
               <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogTrigger asChild>
@@ -978,6 +1107,37 @@ export default function LessonPage() {
           </Button>
         </div>
       </main>
+
+      {/* Lesson Completion Modal */}
+      {showConfetti && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-in fade-in-0 duration-500">
+          <div className="bg-white rounded-2xl p-8 mx-4 max-w-md w-full text-center animate-in slide-in-from-bottom-4 duration-500">
+            <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-12 h-12 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">🎉 Lesson Complete!</h2>
+            <p className="text-gray-600 mb-6">
+              Congratulations! You&apos;ve successfully completed &quot;{lesson?.title}&quot;. 
+              Keep up the great work on your learning journey!
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => router.push('/dashboard')}
+                className="flex-1 bg-orange-500 hover:bg-orange-600"
+              >
+                Back to Dashboard
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfetti(false)}
+                className="flex-1"
+              >
+                Continue Reviewing
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

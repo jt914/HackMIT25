@@ -89,8 +89,8 @@ class TextBulletScene(Scene):
         script_data = {json.dumps(script_data, indent=2)}
         
         # Create title
-        title = Text(script_data["title"], font_size=48, color=WHITE)
-        title.to_edge(UP, buff=1)
+        title = Text(script_data["title"], font_size=36, color=WHITE)
+        title.move_to(UP * 2.5)
         self.play(Write(title))
         self.wait(1)
         
@@ -98,11 +98,40 @@ class TextBulletScene(Scene):
         bullets = script_data["bullets"]
         timing = script_data.get("timing", {{}})
         
-        # Create bullet points
+        # Create bullet points with text wrapping
         bullet_objects = []
+        max_chars_per_line = 60  # Maximum characters per line
+        
         for i, bullet in enumerate(bullets):
-            bullet_text = Text(f"• {{bullet['text']}}", font_size=36, color=WHITE)
-            bullet_text.move_to(UP * (2 - i * 1.2))  # Space them vertically
+            bullet_content = bullet['text']
+            
+            # Wrap long text to multiple lines
+            if len(bullet_content) > max_chars_per_line:
+                # Split into multiple lines at word boundaries
+                words = bullet_content.split()
+                lines = []
+                current_line = ""
+                
+                for word in words:
+                    if len(current_line + " " + word) <= max_chars_per_line:
+                        current_line += (" " + word) if current_line else word
+                    else:
+                        if current_line:
+                            lines.append(current_line)
+                        current_line = word
+                
+                if current_line:
+                    lines.append(current_line)
+                
+                # Create multi-line bullet text with proper alignment
+                bullet_text_content = "• " + lines[0] + ("\\n  " + "\\n  ".join(lines[1:]) if len(lines) > 1 else "")
+            else:
+                bullet_text_content = f"• {{bullet_content}}"
+            
+            bullet_text = Text(bullet_text_content, font_size=24, color=WHITE)
+            # Better positioning: start below title and use much tighter spacing
+            bullet_text.move_to(UP * (0.8 - i * 0.4))
+            bullet_text.align_to(LEFT * 3, LEFT)  # Align all bullets to the left
             bullet_objects.append(bullet_text)
         
         # Animate bullet points appearing one by one

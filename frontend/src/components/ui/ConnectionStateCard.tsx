@@ -12,7 +12,7 @@ interface ConnectionEvent {
   event_type: string;
   status: string;
   message?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -126,9 +126,9 @@ export default function ConnectionStateCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-2xl">{getSourceIcon(connectionState.source_type)}</span>
-            <div>
-              <CardTitle className="text-lg">{connectionState.source_name}</CardTitle>
-              <CardDescription className="capitalize">{connectionState.source_type}</CardDescription>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg truncate" title={connectionState.source_name}>{connectionState.source_name}</CardTitle>
+              <CardDescription className="capitalize truncate" title={connectionState.source_type}>{connectionState.source_type}</CardDescription>
             </div>
           </div>
           <div className="flex gap-2">
@@ -186,7 +186,11 @@ export default function ConnectionStateCard({
         {connectionState.last_error && (
           <div className="p-3 bg-red-50 rounded-lg border border-red-200">
             <div className="font-medium text-red-900">Last Error</div>
-            <div className="text-sm text-red-700 mt-1">
+            <div className="text-sm text-red-700 mt-1 break-words overflow-hidden" title={connectionState.last_error} style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical'
+            }}>
               {connectionState.last_error}
             </div>
             <div className="text-xs text-red-600 mt-1">
@@ -209,7 +213,7 @@ export default function ConnectionStateCard({
               <DialogHeader>
                 <DialogTitle>Test {connectionState.source_name}</DialogTitle>
                 <DialogDescription>
-                  This will test the connection to verify it's working properly.
+                  This will test the connection to verify it&apos;s working properly.
                 </DialogDescription>
               </DialogHeader>
               <div className="flex justify-end gap-2 mt-4">
@@ -246,7 +250,7 @@ export default function ConnectionStateCard({
                       <div key={event.id} className="p-3 border rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <Badge className={getStatusColor(event.status)} size="sm">
+                            <Badge className={`text-xs px-2 py-1 ${getStatusColor(event.status)}`}>
                               {event.event_type}
                             </Badge>
                             <span className="text-sm font-medium capitalize">
@@ -258,12 +262,16 @@ export default function ConnectionStateCard({
                           </span>
                         </div>
                         {event.message && (
-                          <p className="text-sm text-gray-700">{event.message}</p>
+                          <p className="text-sm text-gray-700 break-words overflow-hidden" title={event.message} style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical'
+                          }}>{event.message}</p>
                         )}
                         {event.metadata && (
                           <div className="text-xs text-gray-500 mt-1">
-                            {event.metadata.response_time_ms && (
-                              <span>Response time: {event.metadata.response_time_ms}ms</span>
+                            {typeof event.metadata === 'object' && event.metadata !== null && 'response_time_ms' in event.metadata && (
+                              <span>Response time: {String(event.metadata.response_time_ms)}ms</span>
                             )}
                           </div>
                         )}

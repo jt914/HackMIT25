@@ -11,6 +11,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Normalize and validate username (name field)
+    const normalizedName = name.toLowerCase();
+    const usernameRegex = /^[a-z0-9-]+$/;
+    if (!usernameRegex.test(normalizedName)) {
+      return NextResponse.json({ error: 'Username can only contain lowercase letters, numbers, and hyphens' }, { status: 400 });
+    }
+
+    if (normalizedName.length < 3) {
+      return NextResponse.json({ error: 'Username must be at least 3 characters long' }, { status: 400 });
+    }
+
     const hashedPassword = await hashPassword(password);
 
     // Try MongoDB first, fallback to in-memory if it fails
@@ -27,7 +38,7 @@ export async function POST(request: NextRequest) {
       const result = await users.insertOne({
         email,
         password: hashedPassword,
-        name,
+        name: normalizedName,
         enrolledLessons: [],
         createdAt: new Date()
       });
@@ -36,7 +47,7 @@ export async function POST(request: NextRequest) {
 
       const response = NextResponse.json({
         message: 'User created successfully',
-        user: { id: result.insertedId, email, name }
+        user: { id: result.insertedId, email, name: normalizedName }
       });
 
       response.cookies.set('token', token, {
@@ -60,7 +71,7 @@ export async function POST(request: NextRequest) {
       const result = await fallbackDB.insertUser({
         email,
         password: hashedPassword,
-        name,
+        name: normalizedName,
         enrolledLessons: [],
         createdAt: new Date()
       });
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       const response = NextResponse.json({
         message: 'User created successfully (using fallback database)',
-        user: { id: result.insertedId, email, name }
+        user: { id: result.insertedId, email, name: normalizedName }
       });
 
       response.cookies.set('token', token, {

@@ -1,9 +1,47 @@
+'use client';
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Target, Trophy, ArrowRight, Sparkles } from "lucide-react";
+import { setAuthToken } from "@/lib/backend-auth";
+import { getApiEndpoint } from "@/lib/config";
 
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleYCLogin = async () => {
+    setLoading(true);
+    
+    try {
+      const response = await fetch(getApiEndpoint('login-account'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: 'partner@ycombinator.com', 
+          password: 'helloyc' 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.token) {
+          setAuthToken(data.token);
+        }
+        router.push('/dashboard');
+      } else {
+        console.error('YC Login failed:', data.detail);
+      }
+    } catch (error) {
+      console.error('Network error during YC login:', error);
+    }
+
+    setLoading(false);
+  };
   return (
     <div className="min-h-screen bg-orange-50">
       <header className="px-4 lg:px-6 h-16 flex items-center bg-white/80 backdrop-blur-lg shadow-sm border-b border-orange-100 sticky top-0 z-50">
@@ -41,16 +79,27 @@ export default function Home() {
                   Your coding journey starts here.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4 animate-in fade-in-0 slide-in-from-bottom-6 duration-1000 delay-300">
-                <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group" asChild>
-                  <Link href="/signup">
-                    Get Started Free
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Link>
+              <div className="flex flex-col items-center gap-6 animate-in fade-in-0 slide-in-from-bottom-6 duration-1000 delay-300">
+                <Button 
+                  size="lg" 
+                  onClick={handleYCLogin}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-xl font-bold px-12 py-6 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105 border-2 border-orange-400"
+                >
+                  {loading ? 'Logging in...' : 'YC Login'}
                 </Button>
-                <Button variant="outline" size="lg" className="text-lg px-8 py-4 rounded-xl border-2 border-orange-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-300" asChild>
-                  <Link href="/login">Sign In</Link>
-                </Button>
+                
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group" asChild>
+                    <Link href="/signup">
+                      Get Started Free
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg" className="text-lg px-8 py-4 rounded-xl border-2 border-orange-200 hover:border-orange-300 hover:bg-orange-50 transition-all duration-300" asChild>
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

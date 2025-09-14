@@ -1,18 +1,29 @@
-### Codecademy Clone
+# CodeByte - AI-Powered Learning Platform
 
-I want to build a codecademy clone with the following features: 
-1. Dashboard with lessons. There should be a sidebar and also lessons with boxes. An image of what I'm thinking of is attached below. 
-2. Basic settings
-3. A landing page
-4. A login/signup page. The login and signup features should be implemented with JWT tokens. The database that we are using should be MongoDB. Here's the necessary inforamtion: 
-- Cluster: cluster0
-- Project: hackmit
-- Username for cluster: garygao333_db_user
-- Password for cluster: rnft9uEP2nU2zLNA
-- Current IP address: 192.54.222.142
-- Installtion method is driver: npm install mongodb
-- Also this for the driver: mongodb+srv://garygao333_db_user:rnft9uEP2nU2zLNA@cluster0.ns4xyla.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-5. Add a few dummy lessons that the user can register for. The lessons should be hardcoded for now (the user can kind of click through the lessons when leraning it with certian activities). The database should store what lessons the user is enrolled in. 
+CodeByte is an innovative learning platform that helps users master programming skills through AI-generated interactive lessons, hands-on projects, and personalized learning paths.
 
+## Features: 
+1. **Interactive Dashboard** - Clean interface with lesson management and progress tracking
+2. **AI-Generated Lessons** - Personalized coding lessons created by AI
+3. **User Management** - Secure authentication with JWT tokens
+4. **Progress Tracking** - Monitor learning progress across different topics
+5. **Settings & Profile** - User customization and account management
+6. **Responsive Design** - Works seamlessly across all devices
 
-rnft9uEP2nU2zLNA
+## Technology Stack
+
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
+- **Backend**: FastAPI, Python
+- **Database**: MongoDB
+- **Authentication**: JWT tokens
+- **AI Integration**: Various AI APIs for content generation
+
+## Getting Started
+
+1. Install dependencies: `npm install`
+2. Run development server: `npm run dev`
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Development
+
+This project uses modern web technologies to provide a seamless learning experience for aspiring programmers.

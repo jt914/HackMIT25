@@ -35,11 +35,14 @@ class AccountDetails(BaseModel):
         if not isinstance(v, str):
             raise ValueError("Username must be a string")
         
+        # Convert to lowercase
+        v = v.lower()
+        
         if len(v) < 3:
             raise ValueError("Username must be at least 3 characters long")
         
-        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
-            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
+        if not re.match(r'^[a-z0-9-]+$', v):
+            raise ValueError("Username can only contain lowercase letters, numbers, and hyphens")
         
         return v
 
@@ -171,12 +174,12 @@ class InteractiveInvestigationSlide(BaseModel):
 
 
 class Lesson(BaseModel):
-    """Complete lesson structure with 10-15 slides."""
+    """Complete lesson structure with focused slides."""
     
     id: str = Field(..., description="Unique lesson identifier")
     title: str = Field(..., description="Lesson title")
     description: str = Field(..., description="Brief lesson description")
-    slides: list[InfoSlide | VideoSlide | MCQQuestion | DragDropQuestion | InteractiveInvestigationSlide] = Field(..., min_length=10, max_length=15, description="Lesson slides")
+    slides: list[InfoSlide | VideoSlide | MCQQuestion | DragDropQuestion | InteractiveInvestigationSlide] = Field(..., description="Lesson slides")
     estimated_duration_minutes: int = Field(default=15, description="Estimated completion time")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     user_email: str = Field(..., description="Email of the user who requested the lesson")
@@ -190,6 +193,9 @@ class LessonSummary(BaseModel):
     description: str = Field(..., description="Brief lesson description")
     estimated_duration_minutes: int = Field(..., description="Estimated completion time")
     created_at: datetime = Field(..., description="Creation timestamp")
+    is_completed: bool = Field(default=False, description="Whether the lesson is completed")
+    completion_percentage: float = Field(default=0.0, description="Completion percentage (0-100)")
+    completed_at: Optional[datetime] = Field(None, description="When the lesson was completed")
 
 
 class GenerateLessonResponse(BaseModel):
@@ -471,4 +477,53 @@ class TestConnectionResponse(BaseModel):
     connection_healthy: bool = Field(default=False, description="Whether the connection is healthy")
     test_message: Optional[str] = Field(None, description="Test result message")
     response_time_ms: Optional[int] = Field(None, description="Connection response time in milliseconds")
+    error: Optional[str] = None
+
+
+# Lesson Progress Tracking Models
+class LessonProgress(BaseModel):
+    """Model for tracking user progress in a lesson."""
+    
+    lesson_id: str = Field(..., description="Lesson identifier")
+    user_email: str = Field(..., description="User email")
+    completed_slides: list[str] = Field(default_factory=list, description="List of completed slide IDs")
+    current_slide_index: int = Field(default=0, description="Current slide index")
+    is_completed: bool = Field(default=False, description="Whether the lesson is fully completed")
+    completion_percentage: float = Field(default=0.0, description="Completion percentage (0-100)")
+    started_at: datetime = Field(default_factory=datetime.utcnow, description="When the lesson was first started")
+    last_accessed_at: datetime = Field(default_factory=datetime.utcnow, description="Last time the lesson was accessed")
+    completed_at: Optional[datetime] = Field(None, description="When the lesson was completed")
+
+
+class UpdateProgressRequest(BaseModel):
+    """Request model for updating lesson progress."""
+    
+    email: str = Field(..., description="User email")
+    lesson_id: str = Field(..., description="Lesson identifier")
+    completed_slides: list[str] = Field(..., description="List of completed slide IDs")
+    current_slide_index: int = Field(..., description="Current slide index")
+    is_completed: Optional[bool] = Field(None, description="Whether the lesson is completed")
+
+
+class UpdateProgressResponse(BaseModel):
+    """Response model for progress updates."""
+    
+    success: bool
+    progress: Optional[LessonProgress] = None
+    lesson_completed: bool = Field(default=False, description="Whether the lesson was just completed")
+    error: Optional[str] = None
+
+
+class GetProgressRequest(BaseModel):
+    """Request model for getting lesson progress."""
+    
+    email: str = Field(..., description="User email")
+    lesson_id: str = Field(..., description="Lesson identifier")
+
+
+class GetProgressResponse(BaseModel):
+    """Response model for getting lesson progress."""
+    
+    success: bool
+    progress: Optional[LessonProgress] = None
     error: Optional[str] = None

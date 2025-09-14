@@ -26,10 +26,10 @@ class LessonGeneratorService:
         prompt = self._build_lesson_prompt(query)
         
         print(f"\n🎓 Generating bite-sized lesson for: {query}")
-        print("📚 Creating 10-15 interactive slides with questions...")
+        print("📚 Creating 6-8 focused slides with videos and detective scenario...")
         
         try:
-            # Use the agent to generate lesson content
+            # Use the agent to generate lesson content with detective scenario
             response = await self.agent.query(prompt)
             
             # Parse the JSON response
@@ -38,11 +38,13 @@ class LessonGeneratorService:
             # Create lesson object with proper structure
             lesson = self._create_lesson_object(lesson_data, query, user_email)
             
-            # Add interactive detective scenario at the end
-            detective_slide = await self._generate_detective_scenario(query, user_email)
-            if detective_slide:
+            # Add interactive detective scenario from unified response
+            if "detective_scenario" in lesson_data:
+                detective_slide = self._create_detective_slide_from_data(lesson_data["detective_scenario"])
                 lesson.slides.append(detective_slide)
                 print("🕵️ Added interactive detective scenario to lesson")
+            else:
+                print("⚠️ No detective scenario found in response")
             
             print("✅ Lesson generated successfully!")
             return lesson
@@ -57,142 +59,180 @@ class LessonGeneratorService:
         prompt = f"""
         STOP! READ THIS CAREFULLY BEFORE PROCEEDING:
         
-        You are about to create a lesson about: "{query}"
+        You are about to create a focused, practical lesson about: "{query}"
         
-        MANDATORY TOOL USAGE - YOU CANNOT PROCEED WITHOUT THESE STEPS:
+        MANDATORY RESEARCH PHASE - UNDERSTAND THE TOPIC FIRST:
         
-        STEP 1: SEARCH CODEBASE (REQUIRED - MINIMUM 3 SEARCHES)
-        You MUST use the search_codebase tool AT LEAST 3 times with different search terms:
-        - Search 1: "{query}" (exact topic)
-        - Search 2: Related technical terms (e.g., if query is "authentication", search "auth", "login", "jwt", etc.)
-        - Search 3: Architectural components (e.g., "service", "controller", "model", etc.)
+        ⚠️ CRITICAL TOOL LIMIT: You have a MAXIMUM of 8 total informational tool calls (search_codebase + search_linear_ticket + search_slack_messages). After 8 calls, you MUST proceed to video generation and lesson creation. Plan strategically!
         
-        STEP 2: SEARCH LINEAR TICKETS (REQUIRED - MINIMUM 2 SEARCHES) 
-        You MUST use the search_linear_ticket tool AT LEAST 2 times:
-        - Search 1: "{query}" (exact topic)
-        - Search 2: Related issues (e.g., "bug", "feature", "improvement" related to the topic)
+        STEP 1: EXPLORE THE CODEBASE (RECOMMENDED 3-4 SEARCHES)
+        Use the search_codebase tool to understand how we implement "{query}":
+        - Search for the main topic: "{query}"
+        - Search for related technical concepts and implementation details
+        - Search for architectural patterns and components involved
+        - Use your judgment to search for additional relevant terms
         
-        STEP 3: VERIFY TOOL USAGE
-        Before generating the lesson, confirm you have:
-        ✅ Made at least 3 codebase searches
-        ✅ Made at least 2 Linear ticket searches  
-        ✅ Found actual code files and components
-        ✅ Found actual Linear tickets or issues
+        STEP 2: UNDERSTAND TEAM CONTEXT (RECOMMENDED 2-3 SEARCHES) 
+        Use the search_linear_ticket tool to understand real-world challenges:
+        - Search for "{query}" to find related discussions and decisions
+        - Search for related issues, bugs, or improvements
+        - Look for team decisions and lessons learned
         
-        IF YOU HAVE NOT COMPLETED ALL TOOL SEARCHES, DO NOT PROCEED WITH LESSON GENERATION.
+        STEP 3: OPTIONAL SLACK CONTEXT (RECOMMENDED 1-2 SEARCHES)
+        Use the search_slack_messages tool if helpful for understanding team discussions
         
-        STEP 4: ANALYZE YOUR FINDINGS
-        After completing all searches, synthesize the results to understand:
-        - How we actually implement "{query}" in our codebase
-        - What challenges and decisions the team has faced (from Linear tickets)
-        - Real code examples and architectural patterns we use
-        - Common issues, bugs, or improvements discussed in tickets
+        STEP 4: SYNTHESIZE YOUR UNDERSTANDING
+        Based on your research, determine:
+        - What are the most important concepts someone should understand about "{query}"?
+        - What real challenges has our team faced with "{query}"?
+        - What would be most valuable for a developer to learn?
+        - How should you structure the lesson for maximum impact?
+        
+        YOUR AUTONOMY AS AN EDUCATOR:
+        - YOU decide what concepts are most important to cover
+        - YOU determine the best order to present information
+        - YOU choose which aspects deserve video explanations vs. text
+        - YOU structure the lesson flow based on the complexity and nature of the topic
+        - Focus on practical understanding over comprehensive coverage
         
         LESSON STRUCTURE:
-        - Total slides: 10-15 slides
-        - Pattern: 1-2 info slides → 2-3 questions → repeat (optionally include 1 video slide)
-        - Slide types: Info slides, Video slides, Multiple choice (MCQ), and drag-and-drop
-        - Each info slide should be concise and focused on one concept
-        - Video slides should summarize 3-5 key points with narration
+        - Total slides: 6-8 slides (shorter, focused lessons)
+        - Pattern: video → code slide → video → code slide → 2-3 questions → investigation
+        - AI has flexibility to adjust this pattern as needed (can add/remove slides based on topic complexity)
+        - Slide types: Video slides, Info slides (for code), Multiple choice (MCQ), and drag-and-drop
+        - Each slide should be densely packed with useful, challenging but solvable information
+        - Video slides should explain high-level concepts that help developers start shipping code
+        - Info slides should contain practical code examples and implementation details
         - ALL CONTENT MUST BE BASED ON YOUR TOOL SEARCH RESULTS
+        - Focus on practical understanding that enables immediate productivity
         
         CRITICAL OUTPUT FORMAT: You MUST respond with a valid JSON object in this exact structure:
         {{
-            "title": "Generate a concise, descriptive title (5-8 words) that summarizes what the user will learn about {query}. Focus on the key concepts, not implementation details. Examples: 'Authentication Flow Fundamentals', 'Database Query Optimization Techniques', 'API Design Best Practices'",
-            "description": "Interactive lesson covering {query} concepts and implementation patterns (10-15 words max, no file names)",
+            "title": "Generate a concise, descriptive title (5-8 words) that captures the key learning outcome. Extract the core concept from the user query and create a grammatically correct title. For 'Teach me about user authentication' → 'User Authentication Fundamentals', for 'How does our API work' → 'API Architecture Overview', for 'Database optimization' → 'Database Optimization Techniques'",
+            "description": "Interactive lesson covering core concepts and practical implementation (10-15 words max, no file names)",
             "slides": [
                 {{
-                    "type": "info",
-                    "id": "slide_1",
-                    "title": "Our {query} Architecture",
-                    "content": "Based on [specific file/component found in search]: Brief explanation of how we implement this. Reference actual code structure.",
-                    "code_snippet": "// Actual code snippet from search results\nfunction ourImplementation() {{\n  // Real code from our codebase\n}}",
-                    "image_url": null
-                }},
-                {{
                     "type": "video",
-                    "id": "video_1",
-                    "title": "Key {query} Concepts",
-                    "description": "Overview of how we implement {query} in our system",
+                    "id": "video_1", 
+                    "title": "Core Concepts Overview",
+                    "description": "Foundational concepts developers need to understand to be productive",
                     "video_url": "GENERATED_BY_TOOL",
                     "duration_seconds": null
                 }},
                 {{
-                    "type": "info", 
-                    "id": "slide_2",
-                    "title": "Key Components We Use",
-                    "content": "Our system uses [specific components from search]. These handle [specific functionality found in code].",
-                    "code_snippet": "// Real code showing component usage",
+                    "type": "info",
+                    "id": "code_1",
+                    "title": "Implementation Deep Dive",
+                    "content": "REPLACE WITH ACTUAL CONTENT: Write 3-4 concise bullet points based on your search results. Each bullet should be one key insight (max 15 words). Focus on: • Key implementation pattern • Error handling approach • Production consideration • Best practice from codebase",
+                    "code_snippet": "// Short, focused code snippet (max 10 lines)\nfunction keyPattern() {{\n  // Essential implementation only\n  // Core logic, no verbose comments\n}}",
+                    "image_url": null
+                }},
+                {{
+                    "type": "video",
+                    "id": "video_2",
+                    "title": "Architecture and Design Patterns",
+                    "description": "How components work together and key architectural decisions",
+                    "video_url": "GENERATED_BY_TOOL", 
+                    "duration_seconds": null
+                }},
+                {{
+                    "type": "info",
+                    "id": "code_2",
+                    "title": "Advanced Patterns and Edge Cases",
+                    "content": "REPLACE WITH ACTUAL CONTENT: Write 3-4 concise bullet points based on your search results. Each bullet should be one key insight (max 15 words). Focus on: • Edge case handling • Performance optimization • Common pitfall • Debugging tip from codebase",
+                    "code_snippet": "// Concise code example (max 8 lines)\nfunction handleEdgeCase() {{\n  // Key pattern only\n  // Essential error handling\n}}",
                     "image_url": null
                 }},
                 {{
                     "type": "mcq",
                     "id": "question_1",
-                    "question": "In our codebase, which component handles [specific functionality you found]?",
+                    "question": "REPLACE WITH ACTUAL QUESTION: Create a specific question about {query} based on your search results. Focus on critical decisions developers face when implementing {query} in production.",
                     "options": [
-                        {{"id": "opt_1", "text": "Real component name from our code"}},
-                        {{"id": "opt_2", "text": "Another real component name"}},
-                        {{"id": "opt_3", "text": "Third real component name"}},
-                        {{"id": "opt_4", "text": "Fourth real component name"}}
+                        {{"id": "opt_1", "text": "REPLACE: Option 1 specific to {query} from search results"}},
+                        {{"id": "opt_2", "text": "REPLACE: Option 2 based on codebase patterns for {query}"}},
+                        {{"id": "opt_3", "text": "REPLACE: Option 3 from team practices with {query}"}},
+                        {{"id": "opt_4", "text": "REPLACE: Option 4 related to {query} implementation"}}
                     ],
                     "correct_answer_id": "opt_1",
-                    "explanation": "Based on our search results, [component] handles this in [specific file path]"
+                    "explanation": "REPLACE WITH ACTUAL EXPLANATION: Explain why this is the correct answer based on your actual search results. Reference specific files, patterns, or decisions found in the codebase."
                 }},
                 {{
-                    "type": "info",
-                    "id": "slide_3", 
-                    "title": "Team Decisions & Challenges",
-                    "content": "From Linear ticket [ticket ID]: Our team decided to [specific decision]. This was because [reason from ticket discussion].",
-                    "code_snippet": null,
-                    "image_url": null
+                    "type": "mcq",
+                    "id": "question_2",
+                    "question": "REPLACE WITH ACTUAL QUESTION: Create a specific question about {query} based on your Linear ticket searches. Focus on production issues or priorities related to {query} that the team has actually faced.",
+                    "options": [
+                        {{"id": "opt_1", "text": "REPLACE: Option 1 based on Linear tickets about {query}"}},
+                        {{"id": "opt_2", "text": "REPLACE: Option 2 from production issues with {query}"}},
+                        {{"id": "opt_3", "text": "REPLACE: Option 3 from team discussions about {query}"}},
+                        {{"id": "opt_4", "text": "REPLACE: Option 4 from {query} implementation challenges"}}
+                    ],
+                    "correct_answer_id": "opt_2", 
+                    "explanation": "REPLACE WITH ACTUAL EXPLANATION: Explain why this is the correct answer based on your Linear ticket search results. Reference specific tickets, incidents, or components found in your research."
                 }},
                 {{
                     "type": "drag_drop",
-                    "id": "question_2", 
-                    "question": "Match our actual components to their functions (based on codebase search):",
+                    "id": "question_3",
+                    "question": "REPLACE WITH ACTUAL QUESTION: Create a prioritization question specific to {query}. Focus on implementation steps, architectural decisions, or workflow priorities based on your search results.",
                     "items": [
-                        {{"id": "item_1", "text": "Real component A from our code", "category": null}},
-                        {{"id": "item_2", "text": "Real component B from our code", "category": null}},
-                        {{"id": "item_3", "text": "Actual function X from our code", "category": null}},
-                        {{"id": "item_4", "text": "Actual function Y from our code", "category": null}}
+                        {{"id": "item_1", "text": "REPLACE: First implementation step specific to {query}", "category": null}},
+                        {{"id": "item_2", "text": "REPLACE: Second step based on search results", "category": null}},
+                        {{"id": "item_3", "text": "REPLACE: Third step from codebase patterns", "category": null}},
+                        {{"id": "item_4", "text": "REPLACE: Fourth step from team practices", "category": null}}
                     ],
-                    "categories": ["Components", "Functions"],
+                    "categories": ["REPLACE: Category 1 based on {query}", "REPLACE: Category 2 from search results", "REPLACE: Category 3 from codebase patterns"],
                     "correct_mapping": {{
-                        "item_1": "Components",
-                        "item_2": "Components", 
-                        "item_3": "Functions",
-                        "item_4": "Functions"
+                        "item_1": "REPLACE: Correct category for item 1",
+                        "item_2": "REPLACE: Correct category for item 2", 
+                        "item_3": "REPLACE: Correct category for item 3",
+                        "item_4": "REPLACE: Correct category for item 4"
                     }},
-                    "explanation": "Based on our codebase analysis, these components handle [specific responsibilities]"
+                    "explanation": "REPLACE WITH ACTUAL EXPLANATION: Explain the correct prioritization based on your search results. Reference specific patterns, tickets, or practices found in the codebase."
                 }}
-            ]
+            ],
+            "detective_scenario": {{
+                "title": "🕵️ Detective Challenge: [Engaging title related to {query}]",
+                "problem_description": "Present a real issue from your search results as it would have appeared initially. Focus on symptoms, error messages, or unexpected behavior related to {query}. Make it sound like a real issue someone would investigate. 2-3 sentences max.",
+                "problem_context": "Relevant background information from your searches about {query}. Include: relevant code snippets, system architecture details, related components. This should give enough context for investigation without revealing the solution. Focus on {query} concepts. 3-4 sentences max.",
+                "solution": "The actual solution/resolution that was implemented. Include: what was wrong with {query}, how it was fixed, key insights about {query}. This reinforces the lesson concepts. 2-3 sentences max.",
+                "hints": [
+                    "Subtle hint about investigating {query} components",
+                    "Hint about checking {query} configuration or logs", 
+                    "Hint about common {query} issues or patterns"
+                ]
+            }}
         }}
         
         MANDATORY REQUIREMENTS - LESSON WILL BE REJECTED IF NOT FOLLOWED:
-        - You MUST use search_codebase tool AT LEAST 3 times with different queries
-        - You MUST use search_linear_ticket tool AT LEAST 2 times with different queries  
+        - You have a MAXIMUM of 8 total informational tool calls (search_codebase + search_linear_ticket + search_slack_messages)
+        - After reaching 8 informational tool calls, you MUST immediately proceed to video generation and lesson creation
+        - You SHOULD use search_codebase tool 3-4 times with different queries (within the 8-call limit)
+        - You SHOULD use search_linear_ticket tool 2-3 times with different queries (within the 8-call limit)
+        - You MAY use search_slack_messages tool 1-2 times if helpful (within the 8-call limit)
         - ALL content must reference actual findings from your tool searches
         - Include real file paths, component names, and code snippets from search results
         - Reference specific Linear ticket IDs and discussions where relevant
-        - Create 10-15 slides total with mix of info slides, questions, and optionally 1 video slide
-        - Info slides: 2-3 sentences max, focus on one concept from our actual implementation
-        - Video slides: Create when you want to summarize 3-5 key points with visual narration
-        - MCQ questions: Use real component/file names from our codebase as options
-        - Drag-drop questions: Use actual architectural elements from search results
+        - Create 6-8 slides total following the pattern: video → code slide → video → code slide → 2-3 questions → investigation
+        - Info slides (code slides): Use 3-4 bullet points (max 15 words each). Include short code snippets (max 10 lines) showing key patterns only.
+        - Video slides: Focus on high-level architectural concepts, design decisions, and patterns that enable developers to start shipping code immediately
+        - MCQ questions: Focus on critical architectural decisions and production priorities that developers need to understand
+        - Drag-drop questions: Create topic-specific prioritization questions based on search results. Categories and items must relate directly to {query}, not generic development phases.
         - All IDs must be unique
         - Questions should test understanding of OUR specific implementation, not generic concepts
         - NO GENERIC CONTENT ALLOWED - Everything must be based on search results
-        - If search results are empty or insufficient, explain what you searched for and ask for different search terms
+        - CRITICAL: ALL PLACEHOLDER TEXT MUST BE REPLACED - Never include template text like "REPLACE WITH ACTUAL CONTENT", "Based on search results:", "[specific file]", or similar placeholders in your final response
+        - DETECTIVE SCENARIO: Must be based on actual issues found in your searches - use real tickets, bugs, or problems from search results
+        - If you reach the 8-call limit with insufficient results, work with what you have - do not ask for more searches
         
-        VIDEO SLIDE CREATION (OPTIONAL):
-        - Use video slides to summarize key concepts with visual bullet points and narration
+        VIDEO SLIDE CREATION (ARCHITECTURAL CONCEPTS):
+        - Use video slides to explain high-level concepts that developers need to understand before implementing
         - When creating a video slide, use the create_educational_video tool:
-          * title: Clear, descriptive title for the video
-          * narration: 2-3 sentences explaining the concepts (will be spoken aloud)
-          * bullet_points: 3-5 key points from your search results (comma separated)
+          * title: Clear, descriptive title focusing on architectural concepts (keep it short)
+          * narration: 1-2 sentences explaining why this concept matters for developers shipping code (will be spoken aloud)
+          * bullet_points: 2-3 SHORT key points focusing on practical implications (each point max 6-8 words, comma separated)
         - The tool will generate a video and return a video_url - use this URL in your video slide
-        - Video slides work well for: architecture overviews, key concepts, process flows
-        - Limit to 1 video slide per lesson to maintain engagement balance
+        - FOCUS ON ACTIONABLE INSIGHTS: "Error handling prevents production crashes", "Input validation blocks security issues", "Caching improves user experience"
+        - Create 2 video slides per lesson focusing on the most critical concepts for developer productivity
+        - Emphasize concepts that enable immediate code shipping capability
         
         CONTENT GUIDELINES:
         - Base everything on actual search results - no generic content
@@ -202,6 +242,8 @@ class LessonGeneratorService:
         - Include both successes and known limitations from ticket discussions
         - Make it practical and specific to our team's work
         - DESCRIPTION: Keep to 10-15 words max, focus on learning outcomes, NO file names or technical paths
+        - INFO SLIDE CONTENT FORMAT: Always use bullet points (•) with max 15 words per bullet. No paragraphs or dense text blocks.
+        - CODE SNIPPETS: Keep under 10 lines, show only essential patterns, remove verbose comments and documentation
         
         SEARCH STRATEGY:
         - Search for "{query}" directly
@@ -390,120 +432,22 @@ class LessonGeneratorService:
         else:
             return f"{title} Fundamentals"
     
-    async def _generate_detective_scenario(self, query: str, user_email: str) -> Optional[InteractiveInvestigationSlide]:
-        """Generate an interactive detective scenario related to the lesson topic."""
-        try:
-            print(f"🕵️ Generating detective scenario for topic: {query}")
-            
-            # Use the interactive lesson service to generate a problem related to the lesson topic
-            problem_prompt = f"""
-            MISSION: Create an interactive detective scenario for a lesson about "{query}".
-            
-            MANDATORY SEARCH STEPS - YOU MUST DO ALL OF THESE:
-            
-            STEP 1: SEARCH LINEAR TICKETS (REQUIRED - MINIMUM 3 SEARCHES)
-            Search for issues related to "{query}":
-            - Search 1: "{query}" (exact topic)
-            - Search 2: Related technical terms and components
-            - Search 3: "bug" OR "error" OR "issue" related to this topic
-            
-            STEP 2: SEARCH CODEBASE (REQUIRED - MINIMUM 2 SEARCHES) 
-            Look for code related to the lesson topic:
-            - Search 1: "{query}"
-            - Search 2: Components, functions, or files mentioned in Linear tickets
-            
-            STEP 3: SEARCH SLACK MESSAGES (OPTIONAL - 1 SEARCH)
-            Look for team discussions about "{query}" issues:
-            - Search 1: "{query}" OR "problem" OR "issue" OR "bug"
-            
-            ANALYSIS CRITERIA:
-            Find an issue that is:
-            ✅ Directly related to "{query}" (the lesson topic)
-            ✅ Technical and educational
-            ✅ Has clear problem description and resolution
-            ✅ Would reinforce the lesson concepts through investigation
-            ✅ Not too simple (requires some investigation)
-            ✅ Not too complex (solvable with lesson knowledge)
-            
-            DETECTIVE SCENARIO REQUIREMENTS:
-            - Present it as a real problem that happened in our system
-            - Make it feel like a mystery to be solved
-            - Connect it to the concepts taught in the "{query}" lesson
-            - Include enough context for investigation but don't reveal the solution
-            - Make it engaging and educational
-            
-            REQUIRED OUTPUT FORMAT - Respond with JSON only:
-            {{
-                "title": "🕵️ Detective Challenge: [Engaging title related to {query}]",
-                "problem_description": "Present the problem as it would have appeared initially. Focus on symptoms, error messages, or unexpected behavior related to {query}. Make it sound like a real issue someone would investigate. 2-3 sentences max.",
-                "problem_context": "Relevant background information from your searches about {query}. Include: relevant code snippets, system architecture details, related components. This should give enough context for investigation without revealing the solution. Focus on {query} concepts. 3-4 sentences max.",
-                "solution": "The actual solution/resolution that was implemented. Include: what was wrong with {query}, how it was fixed, key insights about {query}. This reinforces the lesson concepts. 2-3 sentences max.",
-                "hints": [
-                    "Subtle hint about investigating {query} components",
-                    "Hint about checking {query} configuration or logs", 
-                    "Hint about common {query} issues or patterns"
-                ]
-            }}
-            
-            IMPORTANT: The scenario should reinforce and apply the concepts from the "{query}" lesson, making it a practical detective exercise.
-            """
-            
-            response = await self.agent.query(problem_prompt)
-            
-            # Parse the response to extract problem data
-            problem_data = self._parse_detective_response(response)
-            
-            # Create the interactive investigation slide
-            slide_id = f"detective_{uuid.uuid4().hex[:8]}"
-            
-            detective_slide = InteractiveInvestigationSlide(
-                id=slide_id,
-                title=problem_data["title"],
-                problem_description=problem_data["problem_description"],
-                problem_context=problem_data["problem_context"],
-                solution=problem_data["solution"],
-                hints=problem_data.get("hints", []),
-                chat_history=[],
-                current_state="investigating",
-                hints_given=0
-            )
-            
-            return detective_slide
-            
-        except Exception as e:
-            print(f"❌ Error generating detective scenario: {str(e)}")
-            # Return None if we can't generate a detective scenario - lesson can still proceed
-            return None
     
-    def _parse_detective_response(self, response: str) -> Dict[str, any]:
-        """Parse the agent response for detective scenario generation."""
-        try:
-            # Clean the response to extract JSON
-            response = response.strip()
-            
-            # Remove markdown code blocks if present
-            if response.startswith("```json"):
-                response = response[7:]
-            elif response.startswith("```"):
-                response = response[3:]
-                
-            if response.endswith("```"):
-                response = response[:-3]
-                
-            response = response.strip()
-            
-            # Parse JSON
-            problem_data = json.loads(response)
-            
-            # Validate required fields
-            required_fields = ["title", "problem_description", "problem_context", "solution"]
-            for field in required_fields:
-                if field not in problem_data:
-                    raise ValueError(f"Missing required field: {field}")
-            
-            return problem_data
-            
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse detective JSON: {e}")
-            print(f"Raw response (first 500 chars): {response[:500]}")
-            raise ValueError(f"Failed to parse detective response as JSON: {str(e)}")
+    def _create_detective_slide_from_data(self, detective_data: Dict[str, any]) -> InteractiveInvestigationSlide:
+        """Create an InteractiveInvestigationSlide from detective scenario data."""
+        slide_id = f"detective_{uuid.uuid4().hex[:8]}"
+        
+        detective_slide = InteractiveInvestigationSlide(
+            id=slide_id,
+            title=detective_data["title"],
+            problem_description=detective_data["problem_description"],
+            problem_context=detective_data["problem_context"],
+            solution=detective_data["solution"],
+            hints=detective_data.get("hints", []),
+            chat_history=[],
+            current_state="investigating",
+            hints_given=0
+        )
+        
+        return detective_slide
+    

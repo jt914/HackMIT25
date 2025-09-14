@@ -31,12 +31,19 @@ from app.models import (
     GetConnectionStatesResponse,
     TestConnectionRequest,
     TestConnectionResponse,
+    # Progress Tracking Models
+    LessonProgress,
+    UpdateProgressRequest,
+    UpdateProgressResponse,
+    GetProgressRequest,
+    GetProgressResponse,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import create_jwt_token
 from app.api_clients.mongo import mongo_client
 from app.database_builder.daytona_chunk_runner import DaytonaChunkRunner
 from app.agent.agent import Agent
+from app.agent.chat_agent import ChatAgent
 import json
 import app.constants as constants
 from datetime import datetime
@@ -58,6 +65,7 @@ app.add_middleware(
 
 # In-memory registry of per-user agents to preserve chat context
 agent_registry: dict[str, Agent] = {}
+chat_agent_registry: dict[str, ChatAgent] = {}
 
 
 @app.get("/")
@@ -338,11 +346,12 @@ async def chat(request: ChatRequest):
         if not username:
             raise HTTPException(status_code=404, detail="User not found")
 
-        if request.reset or request.email not in agent_registry:
-            agent_registry[request.email] = Agent(username)
+        # Use ChatAgent instead of regular Agent for chat interactions
+        if request.reset or request.email not in chat_agent_registry:
+            chat_agent_registry[request.email] = ChatAgent(username)
 
-        agent = agent_registry[request.email]
-        result = await agent.query(request.message)
+        chat_agent = chat_agent_registry[request.email]
+        result = await chat_agent.query(request.message)
         return ChatResponse(success=True, response=str(result))
     except HTTPException:
         raise
@@ -354,10 +363,10 @@ async def chat(request: ChatRequest):
 @app.get("/lessons/{email}", response_model=GetLessonsResponse)
 async def get_user_lessons(email: str):
     """
-    Get all lesson summaries for a user.
+    Get all lesson summaries for a user with progress information.
     """
     try:
-        lesson_summaries = mongo_client.get_user_lesson_summaries(email)
+        lesson_summaries = mongo_client.get_user_lesson_summaries_with_progress(email)
         from app.models import LessonSummary
         
         # Convert to LessonSummary objects
@@ -406,6 +415,94 @@ async def delete_lesson(lesson_id: str):
         raise
     except Exception as e:
         print(f"Error deleting lesson {lesson_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/lesson-progress/update", response_model=UpdateProgressResponse)
+async def update_lesson_progress(request: UpdateProgressRequest):
+    """
+    Update lesson progress for a user.
+    """
+    try:
+        from datetime import datetime
+        
+        # Get the lesson to calculate completion percentage
+        lesson_data = mongo_client.get_lesson_by_id(request.email, request.lesson_id)
+        if not lesson_data:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+        
+        total_slides = len(lesson_data.get("slides", []))
+        completed_count = len(request.completed_slides)
+        completion_percentage = (completed_count / total_slides * 100) if total_slides > 0 else 0
+        
+        # Check if lesson is completed
+        is_completed = request.is_completed if request.is_completed is not None else (completed_count == total_slides)
+        lesson_completed = False
+        
+        # Get existing progress to check if this is a new completion
+        existing_progress = mongo_client.get_lesson_progress(request.email, request.lesson_id)
+        if is_completed and (not existing_progress or not existing_progress.get("is_completed")):
+            lesson_completed = True
+        
+        progress_data = {
+            "lesson_id": request.lesson_id,
+            "user_email": request.email,
+            "completed_slides": request.completed_slides,
+            "current_slide_index": request.current_slide_index,
+            "is_completed": is_completed,
+            "completion_percentage": completion_percentage,
+            "started_at": existing_progress.get("started_at", datetime.utcnow()) if existing_progress else datetime.utcnow(),
+            "last_accessed_at": datetime.utcnow(),
+            "completed_at": datetime.utcnow() if is_completed and lesson_completed else existing_progress.get("completed_at") if existing_progress else None
+        }
+        
+        success = mongo_client.save_lesson_progress(progress_data)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save progress")
+        
+        # Create response progress object
+        progress = LessonProgress(**progress_data)
+        
+        return UpdateProgressResponse(
+            success=True,
+            progress=progress,
+            lesson_completed=lesson_completed
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating lesson progress: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/lesson-progress/{email}/{lesson_id}", response_model=GetProgressResponse)
+async def get_lesson_progress(email: str, lesson_id: str):
+    """
+    Get lesson progress for a specific user and lesson.
+    """
+    try:
+        progress_data = mongo_client.get_lesson_progress(email, lesson_id)
+        
+        if not progress_data:
+            # Return empty progress if none exists
+            from datetime import datetime
+            progress_data = {
+                "lesson_id": lesson_id,
+                "user_email": email,
+                "completed_slides": [],
+                "current_slide_index": 0,
+                "is_completed": False,
+                "completion_percentage": 0.0,
+                "started_at": datetime.utcnow(),
+                "last_accessed_at": datetime.utcnow(),
+                "completed_at": None
+            }
+        
+        progress = LessonProgress(**progress_data)
+        
+        return GetProgressResponse(success=True, progress=progress)
+    except Exception as e:
+        print(f"Error getting lesson progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

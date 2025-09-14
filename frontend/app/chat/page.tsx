@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getCurrentUserEmail, removeAuthToken, isAuthenticated } from "@/lib/backend-auth";
 import { getApiEndpoint } from "@/lib/config";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
+import 'highlight.js/styles/github.css';
 import {
   Home,
   MessageCircle,
@@ -34,6 +39,12 @@ interface Message {
   lessonId?: string;
 }
 
+interface CodeComponentProps {
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}
+
 function ChatComponent() {
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,6 +55,15 @@ function ChatComponent() {
   const searchParams = useSearchParams();
   const lessonGenerationStarted = useRef(false);
   const fetchUserCalled = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const fetchUser = useCallback(async () => {
     try {
@@ -112,7 +132,28 @@ function ChatComponent() {
       setMessages([
         {
           id: 'welcome',
-          content: "Hi! I'm your AI learning assistant. I can help you create personalized lessons, answer questions about programming, and guide you through your learning journey. What would you like to learn today?",
+          content: `## Welcome to your AI Learning Assistant! 👋
+
+I'm here to help you with programming questions, code analysis, and technical guidance. I can:
+
+### 🔍 **Search & Analyze**
+- Search through your **codebase** to find patterns and implementations
+- Look up **Linear tickets** to understand requirements and issues  
+- Search **Slack messages** for team discussions and decisions
+
+### 💡 **Provide Guidance**
+- Explain programming concepts with examples
+- Help understand your codebase architecture
+- Provide specific, relevant answers from your project context
+
+### ✨ **New Features**
+- **Structured responses** with proper formatting
+- **Code highlighting** for better readability
+- **Organized information** with headers and lists
+
+> **Tip**: Try asking me about specific files, functions, or concepts in your project!
+
+What would you like to explore today?`,
           sender: 'bot',
           timestamp: new Date()
         }
@@ -212,6 +253,9 @@ function ChatComponent() {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    
+    // Scroll to bottom after adding user message
+    setTimeout(() => scrollToBottom(), 100);
 
     // Make actual API call to the chat endpoint
     try {
@@ -335,8 +379,8 @@ function ChatComponent() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-gray-900">{user.name}</p>
-              <p className="text-xs text-gray-600 truncate">{user.email}</p>
+              <p className="text-sm font-medium truncate text-gray-900" title={user.name}>{user.name}</p>
+              <p className="text-xs text-gray-600 truncate" title={user.email}>{user.email}</p>
             </div>
             <Button
               variant="ghost"
@@ -355,7 +399,7 @@ function ChatComponent() {
       <main className="flex-1 ml-64 flex flex-col h-screen">
         <div className="border-b border-orange-100 bg-white/80 backdrop-blur-lg px-8 py-6 shadow-sm">
           <h1 className="text-3xl font-bold text-orange-600">AI Learning Assistant</h1>
-          <p className="text-gray-600 mt-2">Get personalized help with your learning journey</p>
+          <p className="text-gray-600 mt-2">Ask questions about your codebase, tickets, and programming concepts</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
@@ -372,13 +416,75 @@ function ChatComponent() {
                 </Avatar>
               )}
 
-              <Card className={`max-w-[75%] border-0 shadow-lg ${
+              <Card className={`max-w-[75%] min-w-0 border-0 shadow-lg ${
                 message.sender === 'user'
                   ? 'bg-orange-500 text-white'
                   : 'bg-white/80 backdrop-blur-sm'
               }`}>
                 <CardContent className="p-4">
-                  <p className="leading-relaxed">{message.content}</p>
+                  {message.sender === 'bot' ? (
+                    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-orange-600 prose-code:bg-orange-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-50 prose-pre:border prose-blockquote:border-l-orange-500 prose-blockquote:bg-orange-50 prose-blockquote:text-gray-700">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeHighlight, rehypeRaw]}
+                        components={{
+                          code: ({ inline, className, children, ...props }: CodeComponentProps) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline && match ? (
+                              <pre className="bg-gray-50 border rounded-lg p-4 overflow-x-auto">
+                                <code className={className} {...props}>
+                                  {children}
+                                </code>
+                              </pre>
+                            ) : (
+                              <code className="bg-orange-50 text-orange-600 px-1 py-0.5 rounded text-sm" {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                          h1: ({ children }) => (
+                            <h1 className="text-xl font-bold text-gray-900 mt-4 mb-2">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-lg font-semibold text-gray-900 mt-3 mb-2">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-base font-medium text-gray-900 mt-2 mb-1">{children}</h3>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-orange-500 bg-orange-50 pl-4 py-2 my-2 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-2">
+                              <table className="min-w-full border-collapse border border-gray-300">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="border border-gray-300 bg-gray-50 px-2 py-1 text-left font-semibold">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border border-gray-300 px-2 py-1">{children}</td>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="leading-relaxed break-words">{message.content}</p>
+                  )}
                   {message.lessonId && message.sender === 'bot' && (
                     <div className="mt-4">
                       <Button
@@ -423,6 +529,7 @@ function ChatComponent() {
               </Card>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input */}
@@ -431,7 +538,7 @@ function ChatComponent() {
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Ask me anything about learning programming..."
+              placeholder="Ask me about your codebase, tickets, or programming concepts..."
               className="flex-1 h-12 rounded-xl border-gray-200 focus:border-orange-300 focus:ring-orange-200 bg-white/80 backdrop-blur-sm transition-all duration-300"
             />
             <Button

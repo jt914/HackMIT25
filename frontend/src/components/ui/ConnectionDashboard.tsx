@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { getApiEndpoint } from "@/lib/config";
 import ConnectionStateCard from './ConnectionStateCard';
 
@@ -13,7 +12,7 @@ interface ConnectionEvent {
   event_type: string;
   status: string;
   message?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -63,7 +62,7 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
   const [testingConnection, setTestingConnection] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const fetchConnectionStates = async () => {
+  const fetchConnectionStates = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -83,7 +82,7 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [userEmail]);
 
   const testConnection = async (sourceType: string) => {
     try {
@@ -119,20 +118,8 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
     if (userEmail) {
       fetchConnectionStates();
     }
-  }, [userEmail]);
+  }, [userEmail, fetchConnectionStates]);
 
-  const getHealthStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return 'bg-green-100 text-green-800';
-      case 'unhealthy':
-        return 'bg-red-100 text-red-800';
-      case 'degraded':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   if (loading) {
     return (
@@ -149,7 +136,11 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
     <div className="space-y-6">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          <p className="break-words overflow-hidden" style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical'
+          }}>{error}</p>
         </div>
       )}
 
@@ -201,19 +192,19 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
               {Object.entries(summary.sources_by_type).map(([sourceType, stats]) => (
                 <div key={sourceType} className="p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium capitalize">{sourceType}</h3>
-                    <Badge variant="outline">{stats.total}</Badge>
+                    <h3 className="font-medium capitalize break-words truncate flex-1 pr-2" title={sourceType}>{sourceType}</h3>
+                    <Badge variant="outline" className="flex-shrink-0">{stats.total}</Badge>
                   </div>
                   <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span>Connected:</span>
-                      <span className={stats.connected > 0 ? 'text-green-600' : 'text-gray-500'}>
+                    <div className="flex justify-between items-center">
+                      <span className="truncate">Connected:</span>
+                      <span className={`ml-2 ${stats.connected > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                         {stats.connected}/{stats.total}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Healthy:</span>
-                      <span className={stats.healthy > 0 ? 'text-green-600' : 'text-gray-500'}>
+                    <div className="flex justify-between items-center">
+                      <span className="truncate">Healthy:</span>
+                      <span className={`ml-2 ${stats.healthy > 0 ? 'text-green-600' : 'text-gray-500'}`}>
                         {stats.healthy}/{stats.total}
                       </span>
                     </div>
@@ -265,21 +256,21 @@ export default function ConnectionDashboard({ userEmail }: ConnectionDashboardPr
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-green-100 text-green-800">Healthy</Badge>
-              <span>Working properly</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge className="bg-green-100 text-green-800 flex-shrink-0">Healthy</Badge>
+              <span className="truncate">Working properly</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-yellow-100 text-yellow-800">Degraded</Badge>
-              <span>Some issues</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge className="bg-yellow-100 text-yellow-800 flex-shrink-0">Degraded</Badge>
+              <span className="truncate">Some issues</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-red-100 text-red-800">Unhealthy</Badge>
-              <span>Not working</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge className="bg-red-100 text-red-800 flex-shrink-0">Unhealthy</Badge>
+              <span className="truncate">Not working</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>
-              <span>Not tested</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge className="bg-gray-100 text-gray-800 flex-shrink-0">Unknown</Badge>
+              <span className="truncate">Not tested</span>
             </div>
           </div>
         </CardContent>

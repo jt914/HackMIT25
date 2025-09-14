@@ -210,6 +210,7 @@ def create_simple_video_tool() -> FunctionTool:
             print(f"   📋 Bullet points: {bullet_points}")
             
             # Parse bullet points (assume comma or newline separated)
+            # For code content: Each bullet should be 4-8 words, focusing on essential dev info
             bullets = []
             for point in bullet_points.replace('\n', ',').split(','):
                 point = point.strip()
@@ -234,10 +235,10 @@ def create_simple_video_tool() -> FunctionTool:
                 },
                 "bullets": bullets,
                 "timing": {
-                    "bullet_appear_duration": 0.8,
-                    "bullet_highlight_duration": 2.5,
-                    "pause_between_bullets": 0.5,
-                    "final_pause": 2.0
+                    "bullet_appear_duration": 0.6,
+                    "bullet_highlight_duration": 1.8,
+                    "pause_between_bullets": 0.3,
+                    "final_pause": 1.5
                 }
             }
             
@@ -305,9 +306,25 @@ def create_simple_video_tool() -> FunctionTool:
         This tool automatically generates a video with synchronized narration and animated bullet points.
         
         Parameters:
-        - title: Video title (string)
-        - narration: Full narration text that will be spoken aloud (string)
-        - bullet_points: Key points separated by commas or newlines (string)
+        - title: Video title (string, keep short and clear)
+        - narration: Full narration text that will be spoken aloud (string, 1-2 sentences max)
+        - bullet_points: Key points separated by commas (string, KEEP EACH POINT SHORT - max 4-8 words per point)
+        
+        CRITICAL FOR CODE CONTENT: Extract only essential developer info from technical details.
+        Focus on what developers actually need to know, not background context.
+        
+        GOOD examples for code slides:
+        - "JWT tokens expire in 24h"
+        - "Refresh tokens rotate automatically"  
+        - "Mobile network failures handled"
+        - "Centralized 401 retry logic"
+        - "OAuth linked to database"
+        - "Password reset endpoints connected"
+        
+        BAD examples (too verbose for slides):
+        - "Advanced implementation notes and production considerations found in tickets and code"
+        - "The team used short-lived JWTs and shipped FRT-3 to implement refresh token usage"
+        - "Practical edge cases seen in the code include network failures"
         
         Returns: JSON with status and video_url field containing the Cloudinary link if successful.
         Example: {"status": "success", "video_url": "https://res.cloudinary.com/your-cloud/video/upload/v123/educational_videos/generated_video_abc123.mp4", "title": "Video Title"}
@@ -321,6 +338,14 @@ def create_agent_tools(index_name: str) -> List[FunctionTool]:
         create_linear_ticket_search_tool(index_name),
         create_slack_search_tool(index_name),
         create_simple_video_tool()
+    ]
+
+def create_chat_agent_tools(index_name: str) -> List[FunctionTool]:
+    """Create tools specifically for chat interactions - only search tools, no video generation."""
+    return [
+        create_codebase_search_tool(index_name), 
+        create_linear_ticket_search_tool(index_name),
+        create_slack_search_tool(index_name)
     ]
 
 def create_lesson_agent_tools(index_name: str) -> List[FunctionTool]:

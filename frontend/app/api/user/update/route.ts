@@ -22,13 +22,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Username and email are required' }, { status: 400 });
     }
 
-    // Validate username format
-    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
-    if (!usernameRegex.test(username)) {
-      return NextResponse.json({ error: 'Username can only contain letters, numbers, underscores, and hyphens' }, { status: 400 });
+    // Normalize and validate username format
+    const normalizedUsername = username.toLowerCase();
+    const usernameRegex = /^[a-z0-9-]+$/;
+    if (!usernameRegex.test(normalizedUsername)) {
+      return NextResponse.json({ error: 'Username can only contain lowercase letters, numbers, and hyphens' }, { status: 400 });
     }
 
-    if (username.length < 3) {
+    if (normalizedUsername.length < 3) {
       return NextResponse.json({ error: 'Username must be at least 3 characters long' }, { status: 400 });
     }
 
@@ -48,7 +49,7 @@ export async function PUT(request: NextRequest) {
 
     // Check if username is already taken by another user
     const existingUsernameUser = await users.findOne({
-      username,
+      username: normalizedUsername,
       _id: { $ne: new ObjectId(decoded.userId) }
     });
 
@@ -58,7 +59,7 @@ export async function PUT(request: NextRequest) {
 
     const result = await users.updateOne(
       { _id: new ObjectId(decoded.userId) },
-      { $set: { username, email } }
+      { $set: { username: normalizedUsername, email } }
     );
 
     if (result.matchedCount === 0) {

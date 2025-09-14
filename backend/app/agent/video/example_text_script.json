@@ -1,27 +1,27 @@
 {
-  "title": "Key Points About Python",
+  "title": "Authentication Implementation",
   "audio": {
-    "narration": "Python is a powerful programming language with many advantages. First, it has simple and readable syntax that makes it easy to learn. Second, it has a vast ecosystem of libraries and frameworks. Third, it's versatile and can be used for web development, data science, automation, and more. Finally, it has strong community support with extensive documentation and resources.",
+    "narration": "Our authentication system uses JWT tokens with short expiration times for security. The system handles token refresh automatically and includes proper error handling for network failures on mobile devices.",
     "language": "en"
   },
   "bullets": [
     {
-      "text": "Simple and readable syntax"
+      "text": "JWT tokens expire in 24h"
     },
     {
-      "text": "Vast ecosystem of libraries"
+      "text": "Refresh tokens rotate automatically"
     },
     {
-      "text": "Versatile for many use cases"
+      "text": "Mobile network failures handled"
     },
     {
-      "text": "Strong community support"
+      "text": "Centralized 401 retry logic"
     }
   ],
   "timing": {
-    "bullet_appear_duration": 0.8,
-    "bullet_highlight_duration": 2.5,
-    "pause_between_bullets": 0.5,
-    "final_pause": 2.0
+    "bullet_appear_duration": 0.6,
+    "bullet_highlight_duration": 1.8,
+    "pause_between_bullets": 0.3,
+    "final_pause": 1.5
   }
 }

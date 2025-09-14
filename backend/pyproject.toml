@@ -1,7 +1,7 @@
 [project]
-name = "backend"
+name = "codebyte-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "CodeByte AI-powered learning platform backend API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

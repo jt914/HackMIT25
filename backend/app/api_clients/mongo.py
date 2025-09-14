@@ -419,10 +419,85 @@ class MongoClient:
                 {"lessons.id": lesson_id},
                 {"$pull": {"lessons": {"id": lesson_id}}}
             )
+            
+            # Also remove progress for this lesson
+            self.db.lesson_progress.delete_many({"lesson_id": lesson_id})
+            
             return result.modified_count > 0
         except Exception as e:
             print(f"Error deleting lesson {lesson_id}: {e}")
             return False
+
+    def save_lesson_progress(self, progress_data: dict) -> bool:
+        """
+        Save or update lesson progress for a user.
+        """
+        try:
+            from datetime import datetime
+            
+            # Update or insert progress
+            progress_data["last_accessed_at"] = datetime.utcnow()
+            
+            self.db.lesson_progress.update_one(
+                {"lesson_id": progress_data["lesson_id"], "user_email": progress_data["user_email"]},
+                {"$set": progress_data},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            print(f"Error saving lesson progress: {e}")
+            return False
+
+    def get_lesson_progress(self, user_email: str, lesson_id: str) -> dict:
+        """
+        Get lesson progress for a specific user and lesson.
+        Returns None if no progress exists.
+        """
+        try:
+            progress = self.db.lesson_progress.find_one({
+                "user_email": user_email,
+                "lesson_id": lesson_id
+            })
+            return progress
+        except Exception as e:
+            print(f"Error getting lesson progress: {e}")
+            return None
+
+    def get_user_lesson_summaries_with_progress(self, email: str) -> list:
+        """
+        Get lesson summaries for a user with progress information.
+        Returns empty list if no lessons exist.
+        """
+        try:
+            user = self.users.find_one({"email": email})
+            if user and "lessons" in user:
+                # Get all progress for this user
+                progress_cursor = self.db.lesson_progress.find({"user_email": email})
+                progress_dict = {p["lesson_id"]: p for p in progress_cursor}
+                
+                # Return summary fields with progress info for each lesson
+                summaries = []
+                for lesson in user["lessons"]:
+                    lesson_id = lesson.get("id")
+                    progress = progress_dict.get(lesson_id, {})
+                    
+                    summary = {
+                        "id": lesson_id,
+                        "title": lesson.get("title"),
+                        "description": lesson.get("description"),
+                        "estimated_duration_minutes": lesson.get("estimated_duration_minutes", 15),
+                        "created_at": lesson.get("created_at"),
+                        "is_completed": progress.get("is_completed", False),
+                        "completion_percentage": progress.get("completion_percentage", 0.0),
+                        "completed_at": progress.get("completed_at")
+                    }
+                    summaries.append(summary)
+                return summaries
+            else:
+                return []
+        except Exception as e:
+            print(f"Error getting user lesson summaries with progress for {email}: {e}")
+            return []
 
     # Enhanced Connection State Management Methods
     
