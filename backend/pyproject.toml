@@ -1,5 +1,5 @@
 [project]
-name = "codebyte-backend"
+name = "backend"
 version = "0.1.0"
 description = "CodeByte AI-powered learning platform backend API"
 readme = "README.md"
