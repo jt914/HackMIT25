@@ -133,14 +133,14 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-amber-50/20 to-yellow-50/30 flex">
+    <div className="min-h-screen bg-orange-50 flex">
       <div className="w-64 bg-white/80 backdrop-blur-lg shadow-xl border-r border-orange-100 fixed h-full overflow-y-auto">
         <div className="p-6">
           <Link href="/dashboard" className="flex items-center group">
-            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+            <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">CodeByte</span>
+            <span className="font-bold text-xl text-orange-600">CodeByte</span>
           </Link>
         </div>
 
@@ -150,7 +150,7 @@ export default function Dashboard() {
               variant={activeTab === 'Home' ? 'secondary' : 'ghost'}
               className={`w-full justify-start rounded-xl transition-all duration-300 ${
                 activeTab === 'Home'
-                  ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 shadow-lg'
+                  ? 'bg-orange-100 text-orange-700 shadow-lg'
                   : 'hover:bg-orange-50 hover:text-orange-600'
               }`}
               onClick={() => setActiveTab('Home')}
@@ -191,7 +191,7 @@ export default function Dashboard() {
         <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t border-orange-100 bg-white/80 backdrop-blur-lg">
           <div className="flex items-center">
             <Avatar className="mr-3">
-              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg">
+              <AvatarFallback className="bg-orange-500 text-white shadow-lg">
                 {user.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -215,14 +215,14 @@ export default function Dashboard() {
       <main className="flex-1 p-8 ml-64">
         <div className="flex items-center justify-between mb-12">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">All Lessons</h1>
+            <h1 className="text-4xl font-bold text-orange-600">All Lessons</h1>
             <p className="text-gray-600 mt-2">Continue your learning journey</p>
           </div>
         </div>
 
         {lessons.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div className="w-24 h-24 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <BookOpen className="w-12 h-12 text-orange-500" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No lessons yet</h3>
@@ -258,7 +258,7 @@ export default function Dashboard() {
                           <Clock className="w-3 h-3 mr-1" />
                           {lesson.estimated_duration_minutes} min
                         </Badge>
-                        <Button size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                        <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
                           Start
                         </Button>
                       </div>
@@ -275,7 +275,7 @@ export default function Dashboard() {
       <div className="fixed bottom-8 right-8 z-40">
         <Button
           onClick={() => setIsModalOpen(true)}
-          className="h-16 w-52 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:from-orange-600 hover:via-amber-600 hover:to-yellow-600 rounded-2xl shadow-2xl hover:shadow-3xl hover:shadow-orange-200/50 transition-all duration-500 text-lg font-bold text-white hover:scale-105 group"
+          className="h-16 w-52 bg-orange-500 hover:bg-orange-600 rounded-2xl shadow-2xl hover:shadow-3xl hover:shadow-orange-200/50 transition-all duration-500 text-lg font-bold text-white hover:scale-105 group"
         >
           <Plus className="h-6 w-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
           Create Lesson
@@ -285,7 +285,7 @@ export default function Dashboard() {
       {/* Custom Modal Overlay */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-gradient-to-br from-black/60 via-orange-900/20 to-amber-900/20 backdrop-blur-lg flex items-center justify-center animate-in fade-in-0 duration-500"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-lg flex items-center justify-center animate-in fade-in-0 duration-500"
           onClick={() => {
             setIsModalOpen(false);
             setModalInput('');
@@ -297,7 +297,7 @@ export default function Dashboard() {
           >
             <form onSubmit={handleModalSubmit} className="space-y-8">
               <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
+                <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
                   <Sparkles className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-4xl font-bold text-white mb-3 animate-in slide-in-from-top-4 duration-700 delay-200">

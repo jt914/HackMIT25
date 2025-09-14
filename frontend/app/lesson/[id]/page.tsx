@@ -79,6 +79,8 @@ export default function LessonPage() {
   // Drag and drop state
   const [dragDropMapping, setDragDropMapping] = useState<Record<string, string>>({});
   const [dragDropSubmitted, setDragDropSubmitted] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUser();
@@ -165,6 +167,8 @@ export default function LessonPage() {
     setIsCorrect(null);
     setDragDropMapping({});
     setDragDropSubmitted(false);
+    setDraggedItem(null);
+    setDragOverCategory(null);
   };
 
   const handleMCQSubmit = (slide: MCQQuestion) => {
@@ -184,6 +188,53 @@ export default function LessonPage() {
     if (isCorrect) {
       markSlideComplete(slide.id);
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
+    setDraggedItem(itemId);
+    e.dataTransfer.setData('text/plain', itemId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverCategory(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent, category: string) => {
+    e.preventDefault();
+    setDragOverCategory(category);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverCategory(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, category: string) => {
+    e.preventDefault();
+    const itemId = e.dataTransfer.getData('text/plain');
+    if (itemId) {
+      setDragDropMapping(prev => ({
+        ...prev,
+        [itemId]: category
+      }));
+    }
+    setDragOverCategory(null);
+    setDraggedItem(null);
+  };
+
+  const removeItemFromCategory = (itemId: string) => {
+    setDragDropMapping(prev => {
+      const newMapping = { ...prev };
+      delete newMapping[itemId];
+      return newMapping;
+    });
   };
 
   if (loading) {
@@ -331,6 +382,9 @@ export default function LessonPage() {
         );
 
       case 'drag_drop':
+        // Get unassigned items (items not in any category)
+        const unassignedItems = slide.items.filter(item => !dragDropMapping[item.id]);
+
         return (
           <Card className="max-w-4xl mx-auto">
             <CardHeader>
@@ -340,63 +394,163 @@ export default function LessonPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Items to drag */}
                 <div>
-                  <h4 className="font-semibold mb-3">Items:</h4>
-                  <div className="space-y-2">
-                    {slide.items.map((item) => (
-                      <Card 
-                        key={item.id}
-                        className="cursor-move bg-blue-50 border-blue-200"
-                      >
-                        <CardContent className="p-3">
-                          <span className="text-sm">{item.text}</span>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <h4 className="font-semibold mb-3">Items to categorize:</h4>
+                  <div className="space-y-2 min-h-[200px] p-3 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+                    {unassignedItems.length === 0 ? (
+                      <div className="text-center text-gray-500 py-8">
+                        All items have been categorized!
+                      </div>
+                    ) : (
+                      unassignedItems.map((item) => (
+                        <Card
+                          key={item.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, item.id)}
+                          onDragEnd={handleDragEnd}
+                          className={`cursor-move transition-all duration-200 hover:shadow-md select-none ${
+                            draggedItem === item.id
+                              ? 'opacity-50 scale-95 bg-orange-100 border-orange-300'
+                              : 'bg-white border-orange-200 hover:border-orange-300'
+                          } ${!dragDropSubmitted ? 'hover:bg-orange-50' : ''}`}
+                        >
+                          <CardContent className="p-3">
+                            <span className="text-sm font-medium">{item.text}</span>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
                   </div>
                 </div>
 
                 {/* Categories */}
                 <div>
                   <h4 className="font-semibold mb-3">Categories:</h4>
-                  <div className="space-y-2">
-                    {slide.categories.map((category) => (
-                      <Card 
-                        key={category}
-                        className="min-h-[60px] border-dashed border-gray-300"
-                      >
-                        <CardContent className="p-3">
-                          <div className="font-medium text-gray-600 mb-2">{category}</div>
-                          <div className="text-xs text-gray-500">
-                            Drop items here
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="space-y-3">
+                    {slide.categories.map((category) => {
+                      const itemsInCategory = slide.items.filter(item => dragDropMapping[item.id] === category);
+                      const isCorrectCategory = (itemId: string) =>
+                        dragDropSubmitted && slide.correct_mapping[itemId] === category;
+                      const isIncorrectCategory = (itemId: string) =>
+                        dragDropSubmitted && dragDropMapping[itemId] === category && slide.correct_mapping[itemId] !== category;
+
+                      return (
+                        <Card
+                          key={category}
+                          className={`min-h-[100px] transition-all duration-200 ${
+                            dragOverCategory === category
+                              ? 'border-2 border-orange-400 bg-orange-50 scale-[1.02]'
+                              : dragDropSubmitted
+                              ? 'border-2 border-gray-200'
+                              : 'border-2 border-dashed border-gray-300 hover:border-gray-400'
+                          }`}
+                          onDragOver={handleDragOver}
+                          onDragEnter={(e) => handleDragEnter(e, category)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, category)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="font-medium text-gray-800 mb-3 text-center">
+                              {category}
+                            </div>
+
+                            <div className="space-y-2">
+                              {itemsInCategory.length === 0 ? (
+                                <div className="text-center text-gray-400 text-sm py-4 border-2 border-dashed border-gray-200 rounded">
+                                  Drop items here
+                                </div>
+                              ) : (
+                                itemsInCategory.map((item) => (
+                                  <Card
+                                    key={item.id}
+                                    className={`transition-all duration-200 ${
+                                      dragDropSubmitted
+                                        ? isCorrectCategory(item.id)
+                                          ? 'bg-green-100 border-green-300'
+                                          : isIncorrectCategory(item.id)
+                                          ? 'bg-red-100 border-red-300'
+                                          : 'bg-gray-100'
+                                        : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                                    } ${!dragDropSubmitted ? 'cursor-pointer' : ''}`}
+                                    onClick={() => !dragDropSubmitted && removeItemFromCategory(item.id)}
+                                  >
+                                    <CardContent className="p-2">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-sm">{item.text}</span>
+                                        {!dragDropSubmitted && (
+                                          <button className="text-gray-400 hover:text-red-500 ml-2">
+                                            ×
+                                          </button>
+                                        )}
+                                        {dragDropSubmitted && isCorrectCategory(item.id) && (
+                                          <span className="text-green-600 text-sm">✓</span>
+                                        )}
+                                        {dragDropSubmitted && isIncorrectCategory(item.id) && (
+                                          <span className="text-red-600 text-sm">✗</span>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
 
               {!dragDropSubmitted && (
-                <Button 
+                <Button
                   onClick={() => handleDragDropSubmit(slide)}
-                  className="w-full"
+                  className="w-full bg-orange-500 hover:bg-orange-600"
+                  disabled={Object.keys(dragDropMapping).length === 0}
                 >
                   Submit Answers
                 </Button>
               )}
 
               {dragDropSubmitted && (
-                <Card className="border-blue-500 bg-blue-50">
+                <Card className={`${
+                  Object.entries(slide.correct_mapping).every(
+                    ([itemId, correctCategory]) => dragDropMapping[itemId] === correctCategory
+                  ) ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'
+                }`}>
                   <CardContent className="p-4">
                     <div className="flex items-center space-x-2 mb-2">
-                      <CheckCircle className="w-5 h-5 text-blue-600" />
-                      <span className="font-semibold text-blue-800">
+                      <CheckCircle className={`w-5 h-5 ${
+                        Object.entries(slide.correct_mapping).every(
+                          ([itemId, correctCategory]) => dragDropMapping[itemId] === correctCategory
+                        ) ? 'text-green-600' : 'text-red-600'
+                      }`} />
+                      <span className={`font-semibold ${
+                        Object.entries(slide.correct_mapping).every(
+                          ([itemId, correctCategory]) => dragDropMapping[itemId] === correctCategory
+                        ) ? 'text-green-800' : 'text-red-800'
+                      }`}>
                         {Object.entries(slide.correct_mapping).every(
                           ([itemId, correctCategory]) => dragDropMapping[itemId] === correctCategory
-                        ) ? 'Correct!' : 'Some answers are incorrect'}
+                        ) ? 'Perfect! All items are correctly categorized!' : 'Some items are in the wrong categories. Try again!'}
                       </span>
                     </div>
                     <p className="text-sm text-gray-700">{slide.explanation}</p>
+
+                    {/* Show correct answers */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-sm font-medium text-gray-800 mb-2">Correct categorization:</p>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        {Object.entries(slide.correct_mapping).map(([itemId, correctCategory]) => {
+                          const item = slide.items.find(i => i.id === itemId);
+                          return (
+                            <div key={itemId} className="flex justify-between">
+                              <span>"{item?.text}"</span>
+                              <span className="font-medium">→ {correctCategory}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -410,30 +564,31 @@ export default function LessonPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-orange-50">
       {/* Header */}
-      <header className="bg-card shadow-sm border-b sticky top-0 z-10">
+      <header className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-orange-100 sticky top-0 z-10">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
+                className="hover:bg-orange-50 hover:text-orange-600 transition-all duration-300"
                 onClick={() => router.push('/dashboard')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
               <div>
-                <h1 className="text-xl font-bold">{lesson.title}</h1>
-                <p className="text-sm text-muted-foreground">{lesson.description}</p>
+                <h1 className="text-2xl font-bold text-orange-600">{lesson.title}</h1>
+                <p className="text-gray-600">{lesson.description}</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="bg-orange-100 text-orange-700 border-0 rounded-full px-3 py-1">
                 <Clock className="w-3 h-3 mr-1" />
                 {lesson.estimated_duration_minutes} min
               </Badge>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-gray-600 font-medium">
                 {currentSlideIndex + 1} of {lesson.slides.length}
               </div>
             </div>
@@ -441,9 +596,11 @@ export default function LessonPage() {
           
           <div className="flex items-center space-x-4">
             <div className="flex-1">
-              <Progress value={progressPercentage} className="h-2" />
+              <Progress value={progressPercentage} className="h-3 bg-orange-100">
+                <div className="h-full bg-orange-500 rounded-full transition-all duration-300" style={{width: `${progressPercentage}%`}} />
+              </Progress>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-gray-600 font-medium">
               {completedSlides.size}/{lesson.slides.length} completed
             </div>
           </div>

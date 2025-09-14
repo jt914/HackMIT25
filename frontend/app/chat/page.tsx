@@ -229,15 +229,15 @@ function ChatComponent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-amber-50/20 to-yellow-50/30 flex">
+    <div className="min-h-screen bg-orange-50 flex">
       {/* Sidebar */}
       <div className="w-64 bg-white/80 backdrop-blur-lg shadow-xl border-r border-orange-100 fixed h-full overflow-y-auto">
         <div className="p-6">
           <Link href="/dashboard" className="flex items-center group">
-            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+            <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">CodeByte</span>
+            <span className="font-bold text-xl text-orange-600">CodeByte</span>
           </Link>
         </div>
 
@@ -258,7 +258,7 @@ function ChatComponent() {
           <div className="px-6 py-1">
             <Button
               variant="secondary"
-              className="w-full justify-start rounded-xl bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 shadow-lg hover:shadow-xl transition-all duration-300"
+              className="w-full justify-start rounded-xl bg-orange-100 text-orange-700 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <MessageCircle className="mr-3 h-4 w-4" />
               Chat
@@ -282,7 +282,7 @@ function ChatComponent() {
         <div className="absolute bottom-0 left-0 right-0 w-64 p-6 border-t border-orange-100 bg-white/80 backdrop-blur-lg">
           <div className="flex items-center">
             <Avatar className="mr-3">
-              <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg">
+              <AvatarFallback className="bg-orange-500 text-white shadow-lg">
                 {user.name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -306,7 +306,7 @@ function ChatComponent() {
       {/* Main Chat Area */}
       <main className="flex-1 ml-64 flex flex-col h-screen">
         <div className="border-b border-orange-100 bg-white/80 backdrop-blur-lg px-8 py-6 shadow-sm">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">AI Learning Assistant</h1>
+          <h1 className="text-3xl font-bold text-orange-600">AI Learning Assistant</h1>
           <p className="text-gray-600 mt-2">Get personalized help with your learning journey</p>
         </div>
 
@@ -318,7 +318,7 @@ function ChatComponent() {
             >
               {message.sender === 'bot' && (
                 <Avatar className="h-10 w-10 shadow-lg">
-                  <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+                  <AvatarFallback className="bg-orange-500 text-white">
                     <Bot className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
@@ -326,7 +326,7 @@ function ChatComponent() {
 
               <Card className={`max-w-[75%] border-0 shadow-lg ${
                 message.sender === 'user'
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white'
+                  ? 'bg-orange-500 text-white'
                   : 'bg-white/80 backdrop-blur-sm'
               }`}>
                 <CardContent className="p-4">
@@ -335,7 +335,7 @@ function ChatComponent() {
                     <div className="mt-4">
                       <Button
                         onClick={() => router.push(`/lesson/${message.lessonId}`)}
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         Open Lesson
                       </Button>
@@ -349,7 +349,7 @@ function ChatComponent() {
 
               {message.sender === 'user' && (
                 <Avatar className="h-10 w-10 shadow-lg">
-                  <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white">
+                  <AvatarFallback className="bg-gray-500 text-white">
                     <User className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
@@ -360,16 +360,16 @@ function ChatComponent() {
           {(isLoading || isGeneratingLesson) && (
             <div className="flex gap-4 justify-start animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
               <Avatar className="h-10 w-10 shadow-lg">
-                <AvatarFallback className="bg-gradient-to-br from-orange-500 to-amber-500 text-white">
+                <AvatarFallback className="bg-orange-500 text-white">
                   <Bot className="h-5 w-5" />
                 </AvatarFallback>
               </Avatar>
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-4">
                   <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                 </CardContent>
               </Card>
@@ -389,7 +389,7 @@ function ChatComponent() {
             <Button
               type="submit"
               disabled={!inputMessage.trim() || isLoading || isGeneratingLesson}
-              className="h-12 px-6 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
+              className="h-12 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
             >
               <Send className="h-4 w-4" />
             </Button>

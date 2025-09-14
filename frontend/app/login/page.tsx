@@ -48,15 +48,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 via-transparent to-amber-400/10"></div>
+    <div className="min-h-screen bg-orange-50 flex items-center justify-center p-4 relative overflow-hidden">
       <Card className="w-full max-w-lg border-0 shadow-2xl bg-white/90 backdrop-blur-lg relative z-10">
         <CardHeader className="text-center pb-8 pt-8">
           <Link href="/" className="flex items-center justify-center mb-6 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+            <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
               <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="font-bold text-2xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">CodeByte</span>
+            <span className="font-bold text-2xl text-orange-600">CodeByte</span>
           </Link>
           <CardTitle className="text-3xl font-bold text-gray-900 mb-3">Welcome back!</CardTitle>
           <p className="text-gray-600 text-lg">Sign in to continue your learning journey</p>
@@ -98,7 +97,7 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign in'}
